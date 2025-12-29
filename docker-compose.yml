@@ -4,3 +4,23 @@ services:
     environment:
       - KV_VIPER_FILE=/usr/local/bin/config.yaml
     entrypoint: sh -c "transaction-indexer run service"
+  db:
+    image: postgres:latest
+    hostname: host-db
+    container_name: db-container
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=user_0
+      - POSTGRES_PASSWORD=password_0
+      - POSTGRES_DB=database_0
+      - PGDATA=/pgdata
+    volumes:
+      - db-data:/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U healthchecker -d database_0" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
