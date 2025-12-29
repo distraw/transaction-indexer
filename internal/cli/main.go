@@ -5,8 +5,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"transaction-indexer/internal/config"
 
 	"github.com/alecthomas/kingpin/v2"
+	"gitlab.com/distributed_lab/kit/kv"
 	"gitlab.com/distributed_lab/logan/v3"
 )
 
@@ -44,7 +46,8 @@ func Run(args []string) bool {
 
 	switch cmd {
 	case serviceCMD.FullCommand():
-		println("Hello, world!")
+		cfg := config.New(kv.MustFromEnv())
+		cfg.Log().Info("Hello, world!")
 	default:
 		log.WithError(err).Fatalf("unknown command %s", cmd)
 	}

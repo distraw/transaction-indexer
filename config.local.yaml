@@ -1,0 +1,3 @@
+log:
+  disable_sentry: true
+  level: debug
