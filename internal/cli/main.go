@@ -27,6 +27,10 @@ func Run(args []string) bool {
 
 	serviceCMD := runCMD.Command("service", "run full service")
 
+	migrateCMD := app.Command("migrate", "migrate command")
+	migrateUpCMD := migrateCMD.Command("up", "migrate db up")
+	migrateDownCMD := migrateCMD.Command("down", "migrate db down")
+
 	cmd, err := app.Parse(args[1:])
 	if err != nil {
 		log.WithError(err).Fatal("failed to parse arguments")
@@ -45,10 +49,15 @@ func Run(args []string) bool {
 		os.Exit(0)
 	}()
 
+	cfg := config.New(kv.MustFromEnv())
+
 	switch cmd {
 	case serviceCMD.FullCommand():
-		cfg := config.New(kv.MustFromEnv())
 		cfg.Log().Info("Hello, world!")
+	case migrateUpCMD.FullCommand():
+		err = MigrateUp(cfg)
+	case migrateDownCMD.FullCommand():
+		err = MigrateDown(cfg)
 	default:
 		log.WithError(err).Fatalf("unknown command %s", cmd)
 	}
