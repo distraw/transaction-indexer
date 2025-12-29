@@ -16,6 +16,4 @@ FROM alpine:3.23
 COPY --from=buildbase /usr/local/bin/transaction-indexer /usr/local/bin/transaction-indexer
 COPY --from=buildbase /go/src/github.com/distraw/transaction-indexer/config.local.yaml /usr/local/bin/config.yaml
 
-ENV KV_VIPER_FILE="/usr/local/bin/config.yaml"
-
 ENTRYPOINT [ "transaction-indexer" ]

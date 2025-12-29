@@ -1,0 +1,6 @@
+services:
+  transaction-indexer:
+    image: transaction-indexer:latest
+    environment:
+      - KV_VIPER_FILE=/usr/local/bin/config.yaml
+    entrypoint: sh -c "transaction-indexer run service"
