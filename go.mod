@@ -1,4 +1,4 @@
-module transaction-indexer
+module github.com/distraw/transaction-indexer
 
 go 1.25.3
 

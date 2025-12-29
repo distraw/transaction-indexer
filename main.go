@@ -2,7 +2,8 @@ package main
 
 import (
 	"os"
-	"transaction-indexer/internal/cli"
+
+	"github.com/distraw/transaction-indexer/internal/cli"
 )
 
 func main() {

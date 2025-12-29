@@ -5,7 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"transaction-indexer/internal/config"
+
+	"github.com/distraw/transaction-indexer/internal/config"
 
 	"github.com/alecthomas/kingpin/v2"
 	"gitlab.com/distributed_lab/kit/kv"
