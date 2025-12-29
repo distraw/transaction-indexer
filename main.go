@@ -1,5 +1,12 @@
 package main
 
+import (
+	"os"
+	"transaction-indexer/internal/cli"
+)
+
 func main() {
-	println("Hello, world!")
+	if !cli.Run(os.Args) {
+		os.Exit(1)
+	}
 }
