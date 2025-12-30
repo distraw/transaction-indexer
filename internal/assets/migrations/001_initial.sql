@@ -1,5 +1,5 @@
 -- +migrate Up
-CREATE USER heathchecker;
+CREATE USER healthchecker;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
