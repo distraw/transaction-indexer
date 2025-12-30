@@ -2,5 +2,8 @@ log:
   disable_sentry: true
   level: debug
 
+listener:
+  addr: :8808
+
 db:
   url: postgres://user_0:password_0@db:5432/database_0?sslmode=disable

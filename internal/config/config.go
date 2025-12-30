@@ -8,11 +8,13 @@ import (
 
 type Config interface {
 	comfig.Logger
+	comfig.Listenerer
 	pgdb.Databaser
 }
 
 type config struct {
 	comfig.Logger
+	comfig.Listenerer
 	pgdb.Databaser
 
 	getter kv.Getter
@@ -20,8 +22,9 @@ type config struct {
 
 func New(getter kv.Getter) Config {
 	return &config{
-		getter:    getter,
-		Logger:    comfig.NewLogger(getter, comfig.LoggerOpts{}),
-		Databaser: pgdb.NewDatabaser(getter),
+		getter:     getter,
+		Logger:     comfig.NewLogger(getter, comfig.LoggerOpts{}),
+		Listenerer: comfig.NewListenerer(getter),
+		Databaser:  pgdb.NewDatabaser(getter),
 	}
 }

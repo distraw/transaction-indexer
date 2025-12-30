@@ -1,11 +1,6 @@
 package cli
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"github.com/distraw/transaction-indexer/internal/config"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -36,24 +31,11 @@ func Run(args []string) bool {
 		log.WithError(err).Fatal("failed to parse arguments")
 	}
 
-	_, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		sigint := make(chan os.Signal, 1)
-
-		signal.Notify(sigint, os.Interrupt)
-		signal.Notify(sigint, syscall.SIGTERM)
-
-		<-sigint
-
-		cancel()
-		os.Exit(0)
-	}()
-
 	cfg := config.New(kv.MustFromEnv())
 
 	switch cmd {
 	case serviceCMD.FullCommand():
-		cfg.Log().Info("Hello, world!")
+		err = RunService(cfg)
 	case migrateUpCMD.FullCommand():
 		err = MigrateUp(cfg)
 	case migrateDownCMD.FullCommand():
@@ -64,6 +46,7 @@ func Run(args []string) bool {
 
 	if err != nil {
 		log.WithError(err).Error("failed to exec cmd")
+		return false
 	}
 
 	return true
