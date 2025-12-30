@@ -3,6 +3,7 @@ module github.com/distraw/transaction-indexer
 go 1.25.3
 
 require (
+	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/rubenv/sql-migrate v1.8.1
 	gitlab.com/distributed_lab/kit v1.11.4
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/Masterminds/squirrel v1.5.4 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
