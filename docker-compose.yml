@@ -3,6 +3,8 @@ services:
     image: transaction-indexer:latest
     environment:
       - KV_VIPER_FILE=/usr/local/bin/config.yaml
+    volumes:
+      - ./config.local.yaml:/usr/local/bin/config.yaml:ro
     depends_on:
       db:
         condition: service_healthy
