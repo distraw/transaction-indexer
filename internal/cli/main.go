@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/distraw/transaction-indexer/internal/config"
+	"github.com/distraw/transaction-indexer/internal/core"
 
 	"github.com/alecthomas/kingpin/v2"
 	"gitlab.com/distributed_lab/kit/kv"
@@ -35,7 +36,7 @@ func Run(args []string) bool {
 
 	switch cmd {
 	case serviceCMD.FullCommand():
-		err = RunService(cfg)
+		err = core.RunServer(cfg)
 	case migrateUpCMD.FullCommand():
 		err = MigrateUp(cfg)
 	case migrateDownCMD.FullCommand():

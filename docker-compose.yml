@@ -6,6 +6,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      - "8080:8080"
     entrypoint: sh -c "transaction-indexer migrate up && transaction-indexer run service"
   db:
     image: postgres:latest

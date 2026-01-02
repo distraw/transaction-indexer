@@ -3,7 +3,7 @@ log:
   level: debug
 
 listener:
-  addr: :8808
+  addr: :8080
 
 db:
   url: postgres://user_0:password_0@db:5432/database_0?sslmode=disable
