@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
+	"github.com/distraw/transaction-indexer/internal/core/api/request"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/go-chi/chi/v5"
+	"gitlab.com/distributed_lab/ape"
 	"gitlab.com/distributed_lab/logan/v3"
 )
 
@@ -23,17 +26,9 @@ type server struct {
 	ctxExtenders []func(context.Context) context.Context
 }
 
-func dummyHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, world!"))
-}
-
 func (s *server) RunHTTP(ctx context.Context) error {
-	httpRouter := http.NewServeMux()
-
-	httpRouter.HandleFunc("/", dummyHandlerFunc)
-
 	server := &http.Server{
-		Handler: httpRouter,
+		Handler: s.httpRouter(),
 	}
 
 	go func() {
@@ -53,6 +48,19 @@ func (s *server) RunHTTP(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *server) httpRouter() http.Handler {
+	router := chi.NewRouter()
+	router.Use(
+		ape.LoganMiddleware(s.log),
+		ape.RecoverMiddleware(s.log),
+		ape.CtxMiddleWare(s.ctxExtenders...),
+	)
+
+	router.HandleFunc("GET /", request.Ping)
+
+	return router
 }
 
 func NewServer(
