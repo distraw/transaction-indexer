@@ -59,6 +59,9 @@ func (s *server) httpRouter() http.Handler {
 	)
 
 	router.HandleFunc("GET /", request.Ping)
+	router.HandleFunc("GET /ping", request.Ping)
+
+	router.HandleFunc("POST /register", request.Register)
 
 	return router
 }
