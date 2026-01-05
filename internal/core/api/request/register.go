@@ -38,7 +38,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save credentials on server.\n", http.StatusInternalServerError)
 	}
 
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{}`))
 }
