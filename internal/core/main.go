@@ -11,7 +11,7 @@ import (
 	"gitlab.com/distributed_lab/logan/v3/errors"
 )
 
-func RunServer(cfg config.Config) error {
+func RunServer(cfg config.Config, jwtSecret []byte) error {
 	var (
 		logger      = cfg.Log()
 		db          = pg.NewUsersQ(cfg.DB())
@@ -23,6 +23,7 @@ func RunServer(cfg config.Config) error {
 		cfg.Listener(),
 		db,
 		logger,
+		jwtSecret,
 	)
 
 	err := server.RunHTTP(ctx)

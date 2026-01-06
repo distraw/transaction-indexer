@@ -24,5 +24,5 @@ func TestRegister(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 	assert.Equal(t, "application/json", rr.Result().Header.Get("Content-Type"))
-	assert.Equal(t, rr.Body.String(), `{}`)
+	assert.Equal(t, "{}\n", rr.Body.String())
 }

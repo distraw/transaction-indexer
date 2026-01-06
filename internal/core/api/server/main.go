@@ -52,16 +52,16 @@ func (s *server) RunHTTP(ctx context.Context) error {
 
 func (s *server) httpRouter() http.Handler {
 	router := chi.NewRouter()
+
 	router.Use(
 		ape.LoganMiddleware(s.log),
 		ape.RecoverMiddleware(s.log),
 		ape.CtxMiddleWare(s.ctxExtenders...),
 	)
 
-	router.HandleFunc("GET /", request.Ping)
-	router.HandleFunc("GET /ping", request.Ping)
-
-	router.HandleFunc("POST /register", request.Register)
+	router.Get("/ping", request.Ping)
+	router.Post("/register", request.Register)
+	router.Post("/login", request.Login)
 
 	return router
 }
@@ -70,6 +70,7 @@ func NewServer(
 	http net.Listener,
 	db data.UsersQ,
 	log *logan.Entry,
+	jwtSecret []byte,
 ) Server {
 	return &server{
 		http: http,
@@ -77,6 +78,7 @@ func NewServer(
 		ctxExtenders: []func(context.Context) context.Context{
 			ctx.LoggerProvider(log),
 			ctx.DBProvider(db),
+			ctx.JWTSecretProvider(jwtSecret),
 		},
 	}
 }

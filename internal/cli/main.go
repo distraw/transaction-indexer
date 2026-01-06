@@ -22,6 +22,11 @@ func Run(args []string) bool {
 	runCMD := app.Command("run", "run command")
 
 	serviceCMD := runCMD.Command("service", "run full service")
+	jwtSecretFlag := serviceCMD.
+		Flag("JTW_SECRET", "Secret to sign JSON Web Tokens with.").
+		Envar("JWT_SECRET").
+		Required().
+		String()
 
 	migrateCMD := app.Command("migrate", "migrate command")
 	migrateUpCMD := migrateCMD.Command("up", "migrate db up")
@@ -36,7 +41,7 @@ func Run(args []string) bool {
 
 	switch cmd {
 	case serviceCMD.FullCommand():
-		err = core.RunServer(cfg)
+		err = core.RunServer(cfg, []byte(*jwtSecretFlag))
 	case migrateUpCMD.FullCommand():
 		err = MigrateUp(cfg)
 	case migrateDownCMD.FullCommand():

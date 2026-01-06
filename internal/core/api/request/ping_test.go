@@ -19,5 +19,5 @@ func TestPing(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 	assert.Equal(t, "application/json", rr.Result().Header.Get("Content-Type"))
-	assert.Equal(t, rr.Body.String(), `{"alive": true}`)
+	assert.Equal(t, "{\"alive\":true}\n", rr.Body.String())
 }

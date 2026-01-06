@@ -3,11 +3,12 @@ package data
 import "errors"
 
 var ErrAlreadyExists = errors.New("user with providen username already exists")
+var ErrUserNotFound = errors.New("user with given username and password does not exist")
 
 type UsersQ interface {
 	New() UsersQ
 	Insert(user User) (id int64, err error)
-	Get(id int64) (user *User, err error)
+	Get(username string) (*User, error)
 }
 
 type User struct {

@@ -48,13 +48,13 @@ func (u *usersQ) Insert(user data.User) (int64, error) {
 	return id, nil
 }
 
-func (u *usersQ) Get(id int64) (*data.User, error) {
+func (u *usersQ) Get(username string) (*data.User, error) {
 	var user data.User
 	err := u.db.Get(&user, u.selector.Where(squirrel.Eq{
-		usersID: id,
+		usersUsername: username,
 	}))
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return nil, data.ErrUserNotFound
 	}
 
 	return &user, err

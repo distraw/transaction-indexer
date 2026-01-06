@@ -1,6 +1,7 @@
 package request
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
@@ -12,15 +13,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
 	username, password, ok := r.BasicAuth()
-
 	if !ok {
-		http.Error(w, "Use http authorization header to provide credentials.\n", http.StatusUnauthorized)
+		http.Error(w, "Use http authorization header to provide credentials.", http.StatusUnauthorized)
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Failed to generate hashcode from given password.\n", http.StatusInternalServerError)
+		http.Error(w, "Failed to generate hashcode from given password.", http.StatusInternalServerError)
 	}
 
 	db := ctx.DB(c)
@@ -30,15 +30,17 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err == data.ErrAlreadyExists {
-		http.Error(w, "Username was already taken.\n", http.StatusConflict)
+		http.Error(w, "Username was already taken.", http.StatusConflict)
 		return
 	}
 
 	if err != nil {
-		http.Error(w, "Failed to save credentials on server.\n", http.StatusInternalServerError)
+		http.Error(w, "Failed to save credentials on server.", http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{}`))
+
+	// Write empty body upon successful registration
+	json.NewEncoder(w).Encode(map[string]any{})
 }
