@@ -37,32 +37,43 @@ func issueSignedJWT(secret []byte, subject string) (string, error) {
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
+	log := ctx.Logger(c)
 
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		http.Error(w, "Use http authorization header to provide credentials.", http.StatusUnauthorized)
+		http.Error(w, "Use http authorization header to provide credentials", http.StatusUnauthorized)
 		return
 	}
 
 	db := ctx.DB(c)
 	user, err := db.Get(username)
 	if err == data.ErrUserNotFound {
-		http.Error(w, "User with given credentials does not exist.", http.StatusUnauthorized)
+		http.Error(w, "User with given credentials does not exist", http.StatusUnauthorized)
 		return
 	}
 	if err != nil {
-		http.Error(w, "Failed unexpectedly to search for user with given credentials.", http.StatusInternalServerError)
+		log.WithError(err).Error("db failed unexpectedly")
+		http.Error(w, "Failed unexpectedly to search for user with given credentials", http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
+	if err == bcrypt.ErrMismatchedHashAndPassword {
+		http.Error(w, "User with given credentials does not exist", http.StatusUnauthorized)
+		return
+	}
 	if err != nil {
-		http.Error(w, "User with given credentials does not exist.", http.StatusUnauthorized)
+		log.WithError(err).
+			WithField("user.Password", string(user.Password)).
+			WithField("db.Password", password).
+			Error("password comparison failed unexpectedly")
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	signedJWT, err := issueSignedJWT(ctx.JWTSecret(c), username)
 	if err != nil {
+		log.WithError(err).Error("failed unexpectedly to issue signed jwt")
 		http.Error(w, "Failed unexpectedly to issue jwt", http.StatusInternalServerError)
 	}
 

@@ -59,7 +59,7 @@ func (s *server) httpRouter() http.Handler {
 		ape.CtxMiddleWare(s.ctxExtenders...),
 	)
 
-	router.Get("/ping", request.Ping)
+	router.Get("/healthcheck", request.Healthcheck)
 	router.Post("/register", request.Register)
 	router.Post("/login", request.Login)
 

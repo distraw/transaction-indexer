@@ -1,29 +1,44 @@
 package data
 
-const (
-	MockedID       = 1
-	MockedUser     = "mocked_user"
-	MockedPassword = "mocked_password"
-)
+import "maps"
 
-type UsersQMock struct{}
+type UsersQMock struct {
+	Data map[string]User
+}
 
 func (u *UsersQMock) New() UsersQ {
 	return u
 }
 
-func (u *UsersQMock) Insert(user User) (int64, error) {
-	return 1, nil
+func (u *UsersQMock) Insert(user User) error {
+	if _, ok := u.Data[user.Username]; ok {
+		return ErrAlreadyExists
+	}
+
+	u.Data[user.Username] = user
+	return nil
 }
 
 func (u *UsersQMock) Get(username string) (*User, error) {
-	if username == MockedUser {
+	if user, ok := u.Data[username]; ok {
 		return &User{
-			ID:       MockedID,
-			Username: MockedUser,
-			Password: []byte(MockedPassword),
+			Username: user.Username,
+			Password: user.Password,
 		}, nil
 	}
 
 	return nil, ErrUserNotFound
+}
+
+// WithUser returns deep copy of UsersQMock containing providen user
+func (u UsersQMock) WithUser(user User) UsersQMock {
+	dataCopy := maps.Clone(u.Data)
+	dataCopy[user.Username] = user
+	return UsersQMock{Data: dataCopy}
+}
+
+func NewUsersQMock() UsersQMock {
+	return UsersQMock{
+		Data: make(map[string]User, 0),
+	}
 }
