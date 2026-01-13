@@ -30,7 +30,13 @@ func (u *UsersQMock) Get(username string) (*User, error) {
 	return nil, ErrUserNotFound
 }
 
+func (u *UsersQMock) Exists(username string) bool {
+	_, ok := u.Data[username]
+	return ok
+}
+
 // WithUser returns deep copy of UsersQMock containing providen user
+// for testing purposes
 func (u UsersQMock) WithUser(user User) UsersQMock {
 	dataCopy := maps.Clone(u.Data)
 	dataCopy[user.Username] = user

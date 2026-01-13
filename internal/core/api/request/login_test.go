@@ -2,7 +2,6 @@ package request
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,35 +9,13 @@ import (
 	"time"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
+	"github.com/distraw/transaction-indexer/internal/core/api/token"
 	"github.com/distraw/transaction-indexer/internal/data"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/distributed_lab/logan/v3"
 	"golang.org/x/crypto/bcrypt"
 )
-
-func parseJWT(t *testing.T, body []byte, secret []byte) *jwt.RegisteredClaims {
-	var parsedBody struct {
-		Token string `json:"token"`
-	}
-
-	err := json.Unmarshal(body, &parsedBody)
-	require.NoError(t, err)
-
-	token, err := jwt.ParseWithClaims(parsedBody.Token, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return secret, nil
-	})
-	require.NoError(t, err)
-
-	claims, ok := token.Claims.(*jwt.RegisteredClaims)
-	require.True(t, ok, "failed to fetch claims from token")
-
-	return claims
-}
 
 func TestLogin(t *testing.T) {
 	const (
@@ -104,7 +81,15 @@ func TestLogin(t *testing.T) {
 			body, err := io.ReadAll(rr.Result().Body)
 			require.NoError(t, err)
 
-			tokenClaims := parseJWT(t, body, []byte(mockedSecret))
+			var parsedBody struct {
+				Token string `json:"token"`
+			}
+
+			err = json.Unmarshal(body, &parsedBody)
+			require.NoError(t, err, "failed to fetch jwt from response body")
+
+			tokenClaims, err := token.Parse(parsedBody.Token, []byte(mockedSecret))
+			require.NoError(t, err, "failed unexpectedly to parse JWT")
 
 			assert.Equal(t, mockedIssuer, tokenClaims.Issuer)
 			assert.Equal(t, mockedSubject, tokenClaims.Subject)

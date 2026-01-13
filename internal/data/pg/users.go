@@ -3,6 +3,7 @@ package pg
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
@@ -67,6 +68,20 @@ func (u *usersQ) Get(username string) (*data.User, error) {
 	}
 
 	return &user, err
+}
+
+func (u *usersQ) Exists(username string) bool {
+	query := fmt.Sprintf(
+		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1)",
+		usersTable,
+		usersUsername,
+	)
+
+	var ok bool
+	u.db.RawDB().
+		QueryRow(query, username).
+		Scan(&ok)
+	return ok
 }
 
 func NewUsersQ(db *pgdb.DB) data.UsersQ {

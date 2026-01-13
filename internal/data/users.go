@@ -9,6 +9,7 @@ type UsersQ interface {
 	New() UsersQ
 	Insert(user User) error
 	Get(username string) (*User, error)
+	Exists(username string) (ok bool)
 }
 
 type User struct {

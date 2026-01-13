@@ -8,10 +8,7 @@ import (
 	"time"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
-	"github.com/distraw/transaction-indexer/internal/core/api/request"
 	"github.com/distraw/transaction-indexer/internal/data"
-	"github.com/go-chi/chi/v5"
-	"gitlab.com/distributed_lab/ape"
 	"gitlab.com/distributed_lab/logan/v3"
 )
 
@@ -48,22 +45,6 @@ func (s *server) RunHTTP(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (s *server) httpRouter() http.Handler {
-	router := chi.NewRouter()
-
-	router.Use(
-		ape.LoganMiddleware(s.log),
-		ape.RecoverMiddleware(s.log),
-		ape.CtxMiddleWare(s.ctxExtenders...),
-	)
-
-	router.Get("/healthcheck", request.Healthcheck)
-	router.Post("/register", request.Register)
-	router.Post("/login", request.Login)
-
-	return router
 }
 
 func NewServer(
