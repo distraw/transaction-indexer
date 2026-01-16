@@ -30,9 +30,9 @@ func (u *UsersQMock) Get(username string) (*User, error) {
 	return nil, ErrUserNotFound
 }
 
-func (u *UsersQMock) Exists(username string) bool {
+func (u *UsersQMock) Exists(username string) (bool, error) {
 	_, ok := u.Data[username]
-	return ok
+	return ok, nil
 }
 
 // WithUser returns deep copy of UsersQMock containing providen user

@@ -53,8 +53,6 @@ func (u *usersQ) Insert(user data.User) error {
 }
 
 func (u *usersQ) Get(username string) (*data.User, error) {
-	var user data.User
-
 	query := squirrel.
 		Select(usersUsername, usersPassword).
 		From(usersTable).
@@ -62,15 +60,19 @@ func (u *usersQ) Get(username string) (*data.User, error) {
 			usersUsername: username,
 		})
 
+	var user data.User
 	err := u.db.Get(&user, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, data.ErrUserNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 
-	return &user, err
+	return &user, nil
 }
 
-func (u *usersQ) Exists(username string) bool {
+func (u *usersQ) Exists(username string) (bool, error) {
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1)",
 		usersTable,
@@ -78,10 +80,14 @@ func (u *usersQ) Exists(username string) bool {
 	)
 
 	var ok bool
-	u.db.RawDB().
+	err := u.db.RawDB().
 		QueryRow(query, username).
 		Scan(&ok)
-	return ok
+	if err != nil {
+		return false, err
+	}
+
+	return ok, nil
 }
 
 func NewUsersQ(db *pgdb.DB) data.UsersQ {

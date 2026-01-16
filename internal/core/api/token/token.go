@@ -9,7 +9,9 @@ import (
 
 const (
 	ExpirationPeriod = time.Hour * 1
-	Issuer           = "transaction-indexer"
+
+	// Name of the issuer that JWTs must be and are signed with
+	Issuer = "transaction-indexer"
 )
 
 var (

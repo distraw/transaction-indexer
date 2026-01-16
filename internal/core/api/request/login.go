@@ -21,18 +21,18 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	log := ctx.Logger(c)
 	user, err := ctx.DB(c).Get(username)
 	if err == data.ErrUserNotFound {
-		http.Error(w, "User with given credentials does not exist", http.StatusUnauthorized)
+		http.Error(w, "401 unauthorized (invalid credentials)", http.StatusUnauthorized)
 		return
 	}
 	if err != nil {
 		log.WithError(err).Error("db failed unexpectedly")
-		http.Error(w, "Failed unexpectedly to search for user with given credentials", http.StatusInternalServerError)
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		http.Error(w, "User with given credentials does not exist", http.StatusUnauthorized)
+		http.Error(w, "401 unauthorized (invalid credentials)", http.StatusUnauthorized)
 		return
 	}
 	if err != nil {
@@ -45,10 +45,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	signedJWT, err := token.Sign(ctx.JWTSecret(c), username)
 	if err != nil {
 		log.WithError(err).Error("failed unexpectedly to issue signed jwt")
-		http.Error(w, "Failed unexpectedly to issue jwt", http.StatusInternalServerError)
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 	}
 
-	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"token": signedJWT,

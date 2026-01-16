@@ -18,17 +18,7 @@ import (
 )
 
 func TestLogin(t *testing.T) {
-	const (
-		mockedUsername = "user_0"
-		mockedPassword = "password_0"
-
-		mockedSecret = "1234567890abcdefghijklmnopqrstuv"
-
-		mockedIssuer  = "transaction-indexer"
-		mockedSubject = mockedUsername
-	)
-
-	mockedHashedPassword, err := bcrypt.GenerateFromPassword([]byte(mockedPassword), bcrypt.DefaultCost)
+	mockedHashedPassword, err := bcrypt.GenerateFromPassword([]byte("password_0"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
 	tests := map[string]struct {
@@ -42,15 +32,15 @@ func TestLogin(t *testing.T) {
 	}{
 		"should return 200 (OK) and JWT when user with given credentials exists": {
 			mockDB: data.NewUsersQMock().WithUser(data.User{
-				Username: mockedUsername,
+				Username: "user_0",
 				Password: mockedHashedPassword,
 			}),
-			inputUsername:            mockedUsername,
-			inputPassword:            mockedPassword,
+			inputUsername:            "user_0",
+			inputPassword:            "password_0",
 			wantStatus:               http.StatusOK,
-			wantContentHeader:        contentTypeJSON,
-			wantResponseTokenIssuer:  mockedIssuer,
-			wantResponseTokenSubject: mockedUsername,
+			wantContentHeader:        "application/json",
+			wantResponseTokenIssuer:  "transaction-indexer",
+			wantResponseTokenSubject: "user_0",
 		},
 	}
 
@@ -61,6 +51,8 @@ func TestLogin(t *testing.T) {
 			require.NoError(t, err, "failed to initialize new http request")
 
 			req.SetBasicAuth(tt.inputUsername, tt.inputPassword)
+
+			mockedSecret := "1234567890abcdefghijklmnopqrstuv"
 
 			// Put mocked DB and logger into request context
 			req = req.WithContext(ctx.DBProvider(&tt.mockDB)(req.Context()))
@@ -87,8 +79,8 @@ func TestLogin(t *testing.T) {
 			tokenClaims, err := token.Parse(parsedBody.Token, []byte(mockedSecret))
 			require.NoError(t, err, "failed unexpectedly to parse JWT")
 
-			assert.Equal(t, mockedIssuer, tokenClaims.Issuer)
-			assert.Equal(t, mockedSubject, tokenClaims.Subject)
+			assert.Equal(t, "transaction-indexer", tokenClaims.Issuer)
+			assert.Equal(t, "user_0", tokenClaims.Subject)
 
 			now := time.Now()
 			assert.False(t, tokenClaims.IssuedAt.Equal(tokenClaims.ExpiresAt.Time))
