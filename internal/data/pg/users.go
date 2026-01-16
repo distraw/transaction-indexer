@@ -21,44 +21,34 @@ const (
 type usersQ struct {
 	db       *pgdb.DB
 	selector squirrel.SelectBuilder
+	inserter squirrel.InsertBuilder
 }
 
 func (u *usersQ) New() data.UsersQ {
 	return NewUsersQ(u.db.Clone())
 }
 
-// Insert inserts new user with given credentials into DB.
-//
-// Does not return ID because, even though it exists as a primary key in DB,
-// username should be used as a key instead
-//
-// For proper functioning chosen DB MUST ensure uniqueness of the username
-func (u *usersQ) Insert(user data.User) error {
-	stmt := squirrel.
-		Insert(usersTable).
+func (u *usersQ) Insert(user data.User) (int, error) {
+	stmt := u.inserter.
 		SetMap(map[string]interface{}{
 			usersUsername: user.Username,
 			usersPassword: user.Password,
-		})
+		}).Suffix("RETURNING id")
 
-	if err := u.db.Exec(stmt); err != nil {
+	var id int
+	if err := u.db.Get(&id, stmt); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			err = data.ErrAlreadyExists
 		}
 
-		return err
+		return -1, err
 	}
 
-	return nil
+	return id, nil
 }
 
 func (u *usersQ) Get(username string) (*data.User, error) {
-	query := squirrel.
-		Select(usersUsername, usersPassword).
-		From(usersTable).
-		Where(squirrel.Eq{
-			usersUsername: username,
-		})
+	query := u.selector.Where(squirrel.Eq{usersUsername: username})
 
 	var user data.User
 	err := u.db.Get(&user, query)
@@ -92,10 +82,8 @@ func (u *usersQ) Exists(username string) (bool, error) {
 
 func NewUsersQ(db *pgdb.DB) data.UsersQ {
 	return &usersQ{
-		db: db.Clone(),
-
-		// Although ID (unique primary key) exists, it is not used.
-		// Username, which uniqueness MUST be forced by DB, is used instead
-		selector: squirrel.Select(usersUsername, usersPassword).From(usersTable),
+		db:       db.Clone(),
+		selector: squirrel.Select("*").From(usersTable),
+		inserter: squirrel.Insert(usersTable),
 	}
 }

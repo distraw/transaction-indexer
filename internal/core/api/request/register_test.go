@@ -42,7 +42,7 @@ func TestRegister(t *testing.T) {
 			inputPassword:     "",
 			wantStatus:        http.StatusUnauthorized,
 			wantContentHeader: "text/plain; charset=utf-8",
-			wantResponseBody:  "Use http authorization header to provide credentials\n",
+			wantResponseBody:  "401 unauthorized (invalid authorization header)\n",
 		},
 		"should return 400 (Bad request) if provided password is too long": {
 			mockDB:        data.NewUsersQMock(),
@@ -51,7 +51,7 @@ func TestRegister(t *testing.T) {
 			inputPassword:     strings.Repeat("x", 73),
 			wantStatus:        http.StatusBadRequest,
 			wantContentHeader: "text/plain; charset=utf-8",
-			wantResponseBody:  "Provided password is too long (72 characters max)\n",
+			wantResponseBody:  "400 bad request (password must be less than 72 symbols)\n",
 		},
 		"should return 409 (Conflict) if username was already taken": {
 			mockDB: data.UsersQMock{Data: map[string]data.User{
@@ -65,7 +65,7 @@ func TestRegister(t *testing.T) {
 			inputPassword:     mockedPassword,
 			wantStatus:        http.StatusConflict,
 			wantContentHeader: "text/plain; charset=utf-8",
-			wantResponseBody:  "Username was already taken\n",
+			wantResponseBody:  "409 conflict (username was already taken)\n",
 		},
 	}
 

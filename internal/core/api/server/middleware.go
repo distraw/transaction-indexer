@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 	"github.com/distraw/transaction-indexer/internal/core/api/token"
+	"github.com/distraw/transaction-indexer/internal/data"
 )
 
 func AuthMiddleware() func(http.Handler) http.Handler {
@@ -35,18 +37,18 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			exists, err := ctx.DB(c).Exists(jwtClaims.Subject)
+			user, err := ctx.DB(c).Get(jwtClaims.Subject)
+			if err == data.ErrUserNotFound {
+				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
+				return
+			}
 			if err != nil {
 				ctx.Logger(c).WithError(err).Error("failed to check user existence in db")
 				http.Error(w, "500 internal server error", http.StatusInternalServerError)
 				return
 			}
-			if !exists {
-				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
-				return
-			}
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(c, "id", user.ID)))
 		})
 	}
 }

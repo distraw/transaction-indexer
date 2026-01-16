@@ -10,13 +10,14 @@ func (u *UsersQMock) New() UsersQ {
 	return u
 }
 
-func (u *UsersQMock) Insert(user User) error {
+// TODO: mock id correctly
+func (u *UsersQMock) Insert(user User) (int, error) {
 	if _, ok := u.Data[user.Username]; ok {
-		return ErrAlreadyExists
+		return -1, ErrAlreadyExists
 	}
 
 	u.Data[user.Username] = user
-	return nil
+	return 0, nil
 }
 
 func (u *UsersQMock) Get(username string) (*User, error) {
