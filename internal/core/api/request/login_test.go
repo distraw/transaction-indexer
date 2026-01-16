@@ -19,10 +19,6 @@ import (
 
 func TestLogin(t *testing.T) {
 	const (
-		noContentType   = ""
-		contentTypeText = "text/plain; charset=utf-8"
-		contentTypeJSON = "application/json"
-
 		mockedUsername = "user_0"
 		mockedPassword = "password_0"
 

@@ -16,9 +16,6 @@ import (
 // Only GET method is tested as it would be enforced by chi router anyway
 func TestRegister(t *testing.T) {
 	const (
-		noContentType   = ""
-		contentTypeText = "text/plain; charset=utf-8"
-
 		mockedUsername = "user_0"
 		mockedPassword = "password_0"
 	)
@@ -44,7 +41,7 @@ func TestRegister(t *testing.T) {
 			inputUsername:     "",
 			inputPassword:     "",
 			wantStatus:        http.StatusUnauthorized,
-			wantContentHeader: contentTypeText,
+			wantContentHeader: contentTypePlain,
 			wantResponseBody:  "Use http authorization header to provide credentials\n",
 		},
 		"should return 400 (Bad request) if provided password is too long": {
@@ -52,7 +49,7 @@ func TestRegister(t *testing.T) {
 			inputUsername:     mockedUsername,
 			inputPassword:     strings.Repeat("x", 73),
 			wantStatus:        http.StatusBadRequest,
-			wantContentHeader: contentTypeText,
+			wantContentHeader: contentTypePlain,
 			wantResponseBody:  "Provided password is too long (72 characters max)\n",
 		},
 		"should return 409 (Conflict) if username was already taken": {
@@ -66,7 +63,7 @@ func TestRegister(t *testing.T) {
 			inputUsername:     mockedUsername,
 			inputPassword:     mockedPassword,
 			wantStatus:        http.StatusConflict,
-			wantContentHeader: contentTypeText,
+			wantContentHeader: contentTypePlain,
 			wantResponseBody:  "Username was already taken\n",
 		},
 	}

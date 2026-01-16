@@ -48,7 +48,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed unexpectedly to issue jwt", http.StatusInternalServerError)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"token": signedJWT,

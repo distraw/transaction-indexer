@@ -12,7 +12,7 @@ import (
 func TestHealthcheck(t *testing.T) {
 	const (
 		expectedStatus      = http.StatusOK
-		expectedContentType = "application/json"
+		expectedContentType = contentTypeJSON
 		expectedBody        = "{\"alive\":true}\n"
 	)
 
