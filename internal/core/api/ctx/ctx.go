@@ -12,6 +12,7 @@ type ctxKey int
 const (
 	dbKey ctxKey = iota
 	logKey
+	userIDKey
 	secretKey
 )
 
@@ -33,6 +34,16 @@ func LoggerProvider(entry *logan.Entry) func(context.Context) context.Context {
 
 func Logger(ctx context.Context) *logan.Entry {
 	return ctx.Value(logKey).(*logan.Entry)
+}
+
+func UserIDProvider(id int) func(context.Context) context.Context {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, userIDKey, id)
+	}
+}
+
+func UserID(ctx context.Context) int {
+	return ctx.Value(userIDKey).(int)
 }
 
 func JWTSecretProvider(secret []byte) func(context.Context) context.Context {

@@ -20,7 +20,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 	log := ctx.Logger(c)
 	user, err := ctx.DB(c).Get(username)
-	if err == data.ErrUserNotFound {
+	if err == data.ErrNotFound {
 		http.Error(w, "401 unauthorized (invalid credentials)", http.StatusUnauthorized)
 		return
 	}

@@ -28,7 +28,7 @@ func (u *UsersQMock) Get(username string) (*User, error) {
 		}, nil
 	}
 
-	return nil, ErrUserNotFound
+	return nil, ErrNotFound
 }
 
 func (u *UsersQMock) Exists(username string) (bool, error) {

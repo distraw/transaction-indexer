@@ -53,7 +53,7 @@ func (u *usersQ) Get(username string) (*data.User, error) {
 	var user data.User
 	err := u.db.Get(&user, query)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, data.ErrUserNotFound
+		return nil, data.ErrNotFound
 	}
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -38,7 +37,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 			}
 
 			user, err := ctx.DB(c).Get(jwtClaims.Subject)
-			if err == data.ErrUserNotFound {
+			if err == data.ErrNotFound {
 				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
 				return
 			}
@@ -48,7 +47,8 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(context.WithValue(c, "id", user.ID)))
+			c = ctx.UserIDProvider(user.ID)(c)
+			next.ServeHTTP(w, r.WithContext(c))
 		})
 	}
 }
