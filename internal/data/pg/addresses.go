@@ -28,7 +28,9 @@ func (a *addressesQ) Insert(address data.Address) (int, error) {
 	query := a.inserter.SetMap(map[string]interface{}{
 		addressesAddr: address.Addr,
 	}).
-		Suffix(fmt.Sprintf("ON CONFLICT (%s) DO NOTHING", addressesAddr)).
+		Suffix(fmt.Sprintf(
+			"ON CONFLICT (%s) DO UPDATE SET %s=EXCLUDED.%s",
+			addressesAddr, addressesAddr, addressesAddr)).
 		Suffix("RETURNING id")
 
 	var id int
@@ -55,8 +57,8 @@ func (a *addressesQ) Get(addr string) (*data.Address, error) {
 func (a *addressesQ) Exists(addr string) (bool, error) {
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1)",
-		usersTable,
-		usersUsername,
+		addressesTable,
+		addressesAddr,
 	)
 
 	var ok bool
@@ -68,6 +70,24 @@ func (a *addressesQ) Exists(addr string) (bool, error) {
 	}
 
 	return ok, nil
+}
+
+func (a *addressesQ) SelectAddresses(ids []int) ([]data.Address, error) {
+	if len(ids) == 0 {
+		return []data.Address{}, nil
+	}
+
+	query := a.selector.Where(squirrel.Eq{
+		"id": ids,
+	})
+
+	var addrs []data.Address
+	err := a.db.Select(&addrs, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return addrs, nil
 }
 
 func NewAddressesQ(db *pgdb.DB) data.AddressesQ {

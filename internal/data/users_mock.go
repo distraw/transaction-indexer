@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"maps"
 )
 
@@ -40,7 +39,11 @@ func (u *UsersQMock) Exists(id int) (bool, error) {
 }
 
 func (u *UsersQMock) AddAddress(userID int, address Address) error {
-	return errors.New("not implemented")
+	panic("not implemented")
+}
+
+func (u *UsersQMock) GetAddresses(userID int) ([]Address, error) {
+	panic("not implemented")
 }
 
 // WithUser returns deep copy of UsersQMock containing providen user

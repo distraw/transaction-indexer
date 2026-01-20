@@ -5,6 +5,8 @@ type UsersAddressesQ interface {
 
 	Insert(userAddress UserAddress) error
 	Exists(userAddress UserAddress) (ok bool, err error)
+
+	GetAddresses(userID int) (addressID []int, err error)
 }
 
 type UserAddress struct {

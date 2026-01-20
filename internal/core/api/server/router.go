@@ -21,7 +21,8 @@ func (s *server) httpRouter() http.Handler {
 	router.Post("/register", request.Register)
 	router.Post("/login", request.Login)
 
-	router.With(AuthMiddleware()).Post("/addresses", request.Addresses)
+	router.With(AuthMiddleware()).Post("/addresses", request.PostAddresses)
+	router.With(AuthMiddleware()).Get("/addresses", request.GetAddresses)
 
 	return router
 }

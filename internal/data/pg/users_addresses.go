@@ -17,7 +17,6 @@ const (
 
 type usersAddressesQ struct {
 	db       *pgdb.DB
-	selector squirrel.SelectBuilder
 	inserter squirrel.InsertBuilder
 }
 
@@ -58,10 +57,26 @@ func (u *usersAddressesQ) Exists(userAddress data.UserAddress) (bool, error) {
 	return ok, nil
 }
 
+func (u *usersAddressesQ) GetAddresses(userID int) ([]int, error) {
+	query := squirrel.
+		Select(usersAddressesAddressID).
+		From(usersAddressesTable).
+		Where(squirrel.Eq{
+			usersAddressesUserID: userID,
+		})
+
+	var addressID []int
+	err := u.db.Select(&addressID, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return addressID, nil
+}
+
 func NewUsersAddressesQ(db *pgdb.DB) data.UsersAddressesQ {
 	return &usersAddressesQ{
 		db:       db.Clone(),
-		selector: squirrel.Select("*").From(usersAddressesTable),
 		inserter: squirrel.Insert(usersAddressesTable),
 	}
 }

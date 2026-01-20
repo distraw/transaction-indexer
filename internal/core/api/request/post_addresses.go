@@ -55,7 +55,7 @@ func parseAddr(body []byte, contentType string) (string, error) {
 	return addr, nil
 }
 
-func Addresses(w http.ResponseWriter, r *http.Request) {
+func PostAddresses(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 	log := ctx.Logger(c)
 

@@ -92,14 +92,6 @@ func (u *usersQ) AddAddress(userID int, address data.Address) error {
 		return data.ErrNotFound
 	}
 
-	exists, err = u.addressesQueryer.Exists(address.Addr)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return data.ErrAlreadyExists
-	}
-
 	addressId, err := u.addressesQueryer.Insert(address)
 	if err != nil {
 		return err
@@ -124,6 +116,29 @@ func (u *usersQ) AddAddress(userID int, address data.Address) error {
 	}
 
 	return nil
+}
+
+func (u *usersQ) GetAddresses(userID int) ([]data.Address, error) {
+	// дістати з addresses всі адреси
+	exists, err := u.Exists(userID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, data.ErrNotFound
+	}
+
+	addressID, err := u.usersAddressesQueryer.GetAddresses(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	addresses, err := u.addressesQueryer.SelectAddresses(addressID)
+	if err != nil {
+		return nil, err
+	}
+
+	return addresses, nil
 }
 
 func NewUsersQ(db *pgdb.DB) data.UsersQ {

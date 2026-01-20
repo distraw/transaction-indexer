@@ -6,6 +6,8 @@ type AddressesQ interface {
 	Insert(address Address) (id int, err error)
 	Get(addr string) (*Address, error)
 	Exists(addr string) (ok bool, err error)
+
+	SelectAddresses(ids []int) ([]Address, error)
 }
 
 type Address struct {
