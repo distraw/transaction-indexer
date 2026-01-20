@@ -13,7 +13,9 @@ type UsersQ interface {
 	// if error occured, id=-1 is returned
 	Insert(user User) (id int, err error)
 	Get(username string) (*User, error)
-	Exists(username string) (ok bool, err error)
+	Exists(id int) (ok bool, err error)
+
+	AddAddress(userID int, address Address) (err error)
 }
 
 type User struct {

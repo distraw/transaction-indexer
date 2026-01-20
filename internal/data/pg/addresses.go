@@ -27,7 +27,9 @@ func (a *addressesQ) New() data.AddressesQ {
 func (a *addressesQ) Insert(address data.Address) (int, error) {
 	query := a.inserter.SetMap(map[string]interface{}{
 		addressesAddr: address.Addr,
-	}).Suffix("RETURNING id ON CONFLICT %s DO NOTHING", addressesAddr)
+	}).
+		Suffix(fmt.Sprintf("ON CONFLICT (%s) DO NOTHING", addressesAddr)).
+		Suffix("RETURNING id")
 
 	var id int
 	err := a.db.Get(&id, query)

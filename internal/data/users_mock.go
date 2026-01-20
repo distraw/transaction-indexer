@@ -1,6 +1,9 @@
 package data
 
-import "maps"
+import (
+	"errors"
+	"maps"
+)
 
 type UsersQMock struct {
 	Data map[string]User
@@ -31,9 +34,13 @@ func (u *UsersQMock) Get(username string) (*User, error) {
 	return nil, ErrNotFound
 }
 
-func (u *UsersQMock) Exists(username string) (bool, error) {
-	_, ok := u.Data[username]
-	return ok, nil
+// TODO
+func (u *UsersQMock) Exists(id int) (bool, error) {
+	return true, nil
+}
+
+func (u *UsersQMock) AddAddress(userID int, address Address) error {
+	return errors.New("not implemented")
 }
 
 // WithUser returns deep copy of UsersQMock containing providen user

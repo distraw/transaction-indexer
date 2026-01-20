@@ -22,6 +22,9 @@ type usersQ struct {
 	db       *pgdb.DB
 	selector squirrel.SelectBuilder
 	inserter squirrel.InsertBuilder
+
+	addressesQueryer      data.AddressesQ
+	usersAddressesQueryer data.UsersAddressesQ
 }
 
 func (u *usersQ) New() data.UsersQ {
@@ -62,16 +65,16 @@ func (u *usersQ) Get(username string) (*data.User, error) {
 	return &user, nil
 }
 
-func (u *usersQ) Exists(username string) (bool, error) {
+func (u *usersQ) Exists(id int) (bool, error) {
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1)",
 		usersTable,
-		usersUsername,
+		"id",
 	)
 
 	var ok bool
 	err := u.db.RawDB().
-		QueryRow(query, username).
+		QueryRow(query, id).
 		Scan(&ok)
 	if err != nil {
 		return false, err
@@ -80,10 +83,56 @@ func (u *usersQ) Exists(username string) (bool, error) {
 	return ok, nil
 }
 
+func (u *usersQ) AddAddress(userID int, address data.Address) error {
+	exists, err := u.Exists(userID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return data.ErrNotFound
+	}
+
+	exists, err = u.addressesQueryer.Exists(address.Addr)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return data.ErrAlreadyExists
+	}
+
+	addressId, err := u.addressesQueryer.Insert(address)
+	if err != nil {
+		return err
+	}
+
+	userAddress := data.UserAddress{
+		UserID:    userID,
+		AddressID: addressId,
+	}
+
+	exists, err = u.usersAddressesQueryer.Exists(userAddress)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return data.ErrAlreadyExists
+	}
+
+	err = u.usersAddressesQueryer.Insert(userAddress)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewUsersQ(db *pgdb.DB) data.UsersQ {
 	return &usersQ{
 		db:       db.Clone(),
 		selector: squirrel.Select("*").From(usersTable),
 		inserter: squirrel.Insert(usersTable),
+
+		addressesQueryer:      NewAddressesQ(db.Clone()),
+		usersAddressesQueryer: NewUsersAddressesQ(db.Clone()),
 	}
 }
