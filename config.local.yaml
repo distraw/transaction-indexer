@@ -5,5 +5,12 @@ log:
 listener:
   addr: :8080
 
+rpc:
+  host: bitcoin-testnet-rpc.publicnode.com:443
+  user: rpcuser
+  pass: rpcpassword
+  http_post_mode: true
+  disable_tls: false
+
 db:
   url: postgres://user_0:password_0@db:5432/database_0?sslmode=disable

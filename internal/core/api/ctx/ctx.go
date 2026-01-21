@@ -12,6 +12,7 @@ type ctxKey int
 const (
 	dbKey ctxKey = iota
 	logKey
+	pollerKey
 	userIDKey
 	secretKey
 )
