@@ -10,21 +10,21 @@ import (
 type ctxKey int
 
 const (
-	dbKey ctxKey = iota
+	storageKey ctxKey = iota
 	logKey
 	pollerKey
 	userIDKey
 	secretKey
 )
 
-func DBProvider(q data.UsersQ) func(context.Context) context.Context {
+func StorageProvider(s data.Storage) func(context.Context) context.Context {
 	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, dbKey, q)
+		return context.WithValue(ctx, storageKey, s)
 	}
 }
 
-func DB(ctx context.Context) data.UsersQ {
-	return ctx.Value(dbKey).(data.UsersQ).New()
+func Storage(ctx context.Context) data.Storage {
+	return ctx.Value(storageKey).(data.Storage).New()
 }
 
 func LoggerProvider(entry *logan.Entry) func(context.Context) context.Context {

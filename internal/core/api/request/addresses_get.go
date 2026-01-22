@@ -10,10 +10,10 @@ import (
 func GetAddresses(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
-	db := ctx.DB(c)
+	storage := ctx.Storage(c)
 	userID := ctx.UserID(c)
 
-	addresses, err := db.GetAddresses(*userID)
+	addresses, err := storage.GetAddresses(*userID)
 	if err != nil {
 		ctx.Logger(c).
 			WithError(err).

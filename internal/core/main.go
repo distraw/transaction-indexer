@@ -15,12 +15,9 @@ import (
 
 func RunServer(cfg config.Config, jwtSecret []byte) error {
 	var (
-		// API
-		logger = cfg.Log()
-		db     = pg.NewUsersQ(cfg.DB())
-
-		// Indexer
-		poller = poller.New(cfg.RPCClient())
+		logger  = cfg.Log()
+		storage = pg.NewStorage(cfg.DB())
+		poller  = poller.New(cfg.RPCClient())
 
 		ctx, cancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	)
@@ -28,7 +25,7 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 
 	server := server.NewServer(
 		cfg.Listener(),
-		db,
+		storage,
 		logger,
 		jwtSecret,
 	)

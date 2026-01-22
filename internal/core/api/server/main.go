@@ -49,7 +49,7 @@ func (s *server) RunHTTP(ctx context.Context) error {
 
 func NewServer(
 	http net.Listener,
-	db data.UsersQ,
+	storage data.Storage,
 	log *logan.Entry,
 	jwtSecret []byte,
 ) Server {
@@ -58,7 +58,7 @@ func NewServer(
 		log:  log,
 		ctxExtenders: []func(context.Context) context.Context{
 			ctx.LoggerProvider(log),
-			ctx.DBProvider(db),
+			ctx.StorageProvider(storage),
 			ctx.JWTSecretProvider(jwtSecret),
 		},
 	}

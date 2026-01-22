@@ -81,10 +81,10 @@ func PostAddresses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := ctx.DB(c)
+	storage := ctx.Storage(c)
 	userID := ctx.UserID(c)
 
-	err = db.AddAddress(*userID, data.Address{Addr: addr})
+	err = storage.AddAddress(*userID, data.Address{Addr: addr})
 	if err == data.ErrAlreadyExists {
 		http.Error(w, "409 conflict (address already exists)", http.StatusConflict)
 		return

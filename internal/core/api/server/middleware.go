@@ -36,7 +36,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			user, err := ctx.DB(c).Get(jwtClaims.Subject)
+			user, err := ctx.Storage(c).Users().Get(jwtClaims.Subject)
 			if err == data.ErrNotFound {
 				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
 				return

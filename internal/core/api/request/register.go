@@ -23,8 +23,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "400 bad request (password must be less than 72 symbols)", http.StatusBadRequest)
 	}
 
-	db := ctx.DB(c)
-	_, err = db.Insert(data.User{
+	_, err = ctx.Storage(c).Users().Insert(data.User{
 		Username: username,
 		Password: hashedPassword,
 	})
