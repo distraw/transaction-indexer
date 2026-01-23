@@ -19,6 +19,11 @@ CREATE TABLE users_addresses (
     PRIMARY KEY(user_id, address_id)
 );
 
+CREATE TABLE blocks (
+    hash TEXT PRIMARY KEY,
+    height BIGINT NOT NULL UNIQUE
+);
+
 -- +migrate Down
 
 DROP USER heathchecker;

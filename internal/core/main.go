@@ -8,7 +8,6 @@ import (
 	"github.com/distraw/transaction-indexer/internal/config"
 	"github.com/distraw/transaction-indexer/internal/core/api/server"
 	"github.com/distraw/transaction-indexer/internal/core/indexer"
-	"github.com/distraw/transaction-indexer/internal/core/indexer/poller"
 	"github.com/distraw/transaction-indexer/internal/data/pg"
 	"gitlab.com/distributed_lab/logan/v3/errors"
 )
@@ -17,7 +16,7 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 	var (
 		logger  = cfg.Log()
 		storage = pg.NewStorage(cfg.DB())
-		poller  = poller.New(cfg.RPCClient())
+		rpc     = cfg.RPCClient()
 
 		ctx, cancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	)
@@ -32,8 +31,9 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 
 	indexer := indexer.New(
 		ctx,
+		storage,
 		logger,
-		poller,
+		rpc,
 	)
 
 	go indexer.Run()

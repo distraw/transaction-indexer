@@ -3,6 +3,7 @@ package ctx
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"gitlab.com/distributed_lab/logan/v3"
 )
@@ -12,9 +13,9 @@ type ctxKey int
 const (
 	storageKey ctxKey = iota
 	logKey
-	pollerKey
 	userIDKey
 	secretKey
+	rpcKey
 )
 
 func StorageProvider(s data.Storage) func(context.Context) context.Context {
@@ -55,4 +56,14 @@ func JWTSecretProvider(secret []byte) func(context.Context) context.Context {
 
 func JWTSecret(ctx context.Context) []byte {
 	return ctx.Value(secretKey).([]byte)
+}
+
+func RPCProvider(rpc *rpcclient.Client) func(context.Context) context.Context {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, rpcKey, rpc)
+	}
+}
+
+func RPC(ctx context.Context) *rpcclient.Client {
+	return ctx.Value(rpcKey).(*rpcclient.Client)
 }
