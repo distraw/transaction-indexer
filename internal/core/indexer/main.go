@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 	"github.com/distraw/transaction-indexer/internal/data"
@@ -24,42 +23,6 @@ type indexer struct {
 	storage   data.Storage
 	rpc       *rpcclient.Client
 	scheduler *tasks.Scheduler
-}
-
-func routinePoll(c context.Context, initialHash *chainhash.Hash) func() error {
-	storage := ctx.Storage(c).Blocks()
-	rpc := ctx.RPC(c)
-	log := ctx.Logger(c)
-
-	prevHash := initialHash
-
-	return func() error {
-		hash, err := rpc.GetBestBlockHash()
-		if err != nil {
-			return errors.Wrap(err, "failed to poll best block hash")
-		}
-		if hash.IsEqual(prevHash) {
-			return nil
-		}
-
-		info, err := rpc.GetBlockHeaderVerbose(hash)
-		if err != nil {
-			return errors.Wrap(err, "failed to poll best block header")
-		}
-
-		log.
-			WithField("prev_hash", prevHash.String()).
-			WithField("new_hash", hash.String()).
-			Info("new hash detected")
-
-		storage.Insert(data.Block{
-			Hash:   hash.String(),
-			Height: info.Height,
-		})
-
-		prevHash = (*chainhash.Hash)(hash.CloneBytes())
-		return nil
-	}
 }
 
 func (i *indexer) Run() error {
