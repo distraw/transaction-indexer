@@ -11,6 +11,7 @@ type storage struct {
 	users          data.UsersQ
 	usersAddresses data.UsersAddressesQ
 	addresses      data.AddressesQ
+	utxos          data.UtxosQ
 
 	blocks data.BlocksQ
 }
@@ -29,6 +30,10 @@ func (s *storage) Addresses() data.AddressesQ {
 
 func (s *storage) Blocks() data.BlocksQ {
 	return s.blocks
+}
+
+func (s *storage) Utxos() data.UtxosQ {
+	return s.utxos
 }
 
 func (s *storage) AddAddress(userID int, address data.Address) error {
@@ -99,6 +104,7 @@ func NewStorage(db *pgdb.DB) data.Storage {
 		users:          NewUsersQ(db),
 		usersAddresses: NewUsersAddressesQ(db),
 		addresses:      NewAddressesQ(db),
+		utxos:          NewUtxosQ(db),
 
 		blocks: NewBlocksQ(db),
 	}

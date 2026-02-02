@@ -20,11 +20,26 @@ CREATE TABLE users_addresses (
 );
 
 CREATE TABLE blocks (
-    hash TEXT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    hash TEXT UNIQUE NOT NULL,
     height BIGINT NOT NULL UNIQUE
+);
+
+CREATE TABLE utxos (
+    id SERIAL PRIMARY KEY,
+
+    txid TEXT NOT NULL,
+    vout INT NOT NULL,
+
+    address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
+    block_id INT REFERENCES blocks(id) ON DELETE CASCADE
 );
 
 -- +migrate Down
 
-DROP USER heathchecker;
+DROP USER healthchecker;
 DROP TABLE users;
+DROP TABLE addresses;
+DROP TABLE users_addresses;
+DROP TABLE blocks;
+DROP TABLE utxos;

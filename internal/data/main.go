@@ -5,6 +5,7 @@ type Storage interface {
 	UsersAddresses() UsersAddressesQ
 	Addresses() AddressesQ
 	Blocks() BlocksQ
+	Utxos() UtxosQ
 
 	AddAddress(userID int, address Address) (err error)
 	GetAddresses(userID int) ([]Address, error)

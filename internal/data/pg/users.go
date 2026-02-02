@@ -32,14 +32,14 @@ func (u *usersQ) New() data.UsersQ {
 }
 
 func (u *usersQ) Insert(user data.User) (int, error) {
-	stmt := u.inserter.
+	query := u.inserter.
 		SetMap(map[string]interface{}{
 			usersUsername: user.Username,
 			usersPassword: user.Password,
 		}).Suffix("RETURNING id")
 
 	var id int
-	if err := u.db.Get(&id, stmt); err != nil {
+	if err := u.db.Get(&id, query); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			err = data.ErrAlreadyExists
 		}

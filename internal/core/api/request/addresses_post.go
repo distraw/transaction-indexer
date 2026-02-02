@@ -10,12 +10,10 @@ import (
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 	"github.com/distraw/transaction-indexer/internal/data"
-	"github.com/josemiguelmelo/btcaddressvalidator"
 )
 
 var (
-	ErrUnsupportedMediaType    = errors.New("Provided media type is unsupported")
-	ErrInvalidBTCAddressFormat = errors.New("Provided BTC address is of invalid format")
+	ErrUnsupportedMediaType = errors.New("Provided media type is unsupported")
 )
 
 func parseAddr(body []byte, contentType string) (string, error) {
@@ -47,11 +45,6 @@ func parseAddr(body []byte, contentType string) (string, error) {
 		return "", ErrUnsupportedMediaType
 	}
 
-	_, err = btcaddressvalidator.CheckBtcAddress(addr)
-	if err != nil {
-		return "", ErrInvalidBTCAddressFormat
-	}
-
 	return addr, nil
 }
 
@@ -69,10 +62,6 @@ func PostAddresses(w http.ResponseWriter, r *http.Request) {
 	addr, err := parseAddr(body, r.Header.Get("Content-type"))
 	if err == ErrUnsupportedMediaType {
 		http.Error(w, "415 unsupported media type", http.StatusUnsupportedMediaType)
-		return
-	}
-	if err == ErrInvalidBTCAddressFormat {
-		http.Error(w, "400 bad request (invalid btc address format)", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
