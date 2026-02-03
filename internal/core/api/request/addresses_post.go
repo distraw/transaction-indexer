@@ -3,13 +3,14 @@ package request
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"mime"
 	"net/http"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
+	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/josemiguelmelo/btcaddressvalidator"
 )
 
 var (
@@ -23,8 +24,6 @@ func parseAddr(body []byte, contentType string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	fmt.Println(mediaType)
 
 	switch mediaType {
 	case "text/plain":
@@ -70,10 +69,25 @@ func PostAddresses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storage := ctx.Storage(c)
-	userID := ctx.UserID(c)
+	_, err = btcaddressvalidator.CheckBtcAddress(addr)
+	if err != nil {
+		http.Error(w, "422 unprocessable entity (invalid btc address format)", http.StatusUnprocessableEntity)
+		return
+	}
 
-	err = storage.AddAddress(*userID, data.Address{Addr: addr})
+	scriptPubKey, err := bitcoin.ToScriptPubKey(addr)
+	if err != nil {
+		log.WithError(err).Error("failed unexpectedly to convert btc address into script public key")
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+	}
+
+	err = ctx.Storage(c).AddAddress(
+		*ctx.UserID(c),
+		data.Address{
+			Addr:         addr,
+			ScriptPubKey: scriptPubKey,
+		},
+	)
 	if err == data.ErrAlreadyExists {
 		http.Error(w, "409 conflict (address already exists)", http.StatusConflict)
 		return

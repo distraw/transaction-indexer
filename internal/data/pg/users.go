@@ -40,11 +40,11 @@ func (u *usersQ) Insert(user data.User) (int, error) {
 
 	var id int
 	if err := u.db.Get(&id, query); err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			err = data.ErrAlreadyExists
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			return 0, data.ErrAlreadyExists
 		}
 
-		return -1, err
+		return 0, err
 	}
 
 	return id, nil
@@ -72,15 +72,33 @@ func (u *usersQ) Exists(id int) (bool, error) {
 		"id",
 	)
 
-	var ok bool
+	var exists bool
 	err := u.db.RawDB().
 		QueryRow(query, id).
-		Scan(&ok)
+		Scan(&exists)
 	if err != nil {
 		return false, err
 	}
 
-	return ok, nil
+	return exists, nil
+}
+
+func (u *usersQ) ExistsByUsername(username string) (bool, error) {
+	query := fmt.Sprintf(
+		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1)",
+		usersTable,
+		usersUsername,
+	)
+
+	var exists bool
+	err := u.db.RawDB().
+		QueryRow(query, username).
+		Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func NewUsersQ(db *pgdb.DB) data.UsersQ {

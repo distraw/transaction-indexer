@@ -1,10 +1,13 @@
 package pg
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
 
@@ -25,13 +28,25 @@ func (u *usersAddressesQ) New() data.UsersAddressesQ {
 }
 
 func (u *usersAddressesQ) Insert(userAddress data.UserAddress) error {
+	exists, err := u.Exists(userAddress)
+	if err != nil {
+		return errors.Wrap(err, "failed to check user_address existence before inserting")
+	}
+	if exists {
+		return data.ErrAlreadyExists
+	}
+
 	query := u.inserter.
 		SetMap(map[string]interface{}{
 			usersAddressesUserID:    userAddress.UserID,
 			usersAddressesAddressID: userAddress.AddressID,
 		}).Suffix("ON CONFLICT DO NOTHING")
 
-	if err := u.db.Exec(query); err != nil {
+	err = u.db.Exec(query)
+	if err != nil {
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			return data.ErrAlreadyExists
+		}
 		return err
 	}
 
@@ -67,6 +82,9 @@ func (u *usersAddressesQ) GetAddresses(userID int) ([]int, error) {
 
 	var addressID []int
 	err := u.db.Select(&addressID, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, data.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

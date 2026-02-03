@@ -13,7 +13,7 @@ import (
 func Login(w http.ResponseWriter, r *http.Request) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		http.Error(w, "Use http authorization header to provide credentials", http.StatusUnauthorized)
+		http.Error(w, "401 unauthorized (basic auth header is missing or invalid)", http.StatusUnauthorized)
 		return
 	}
 

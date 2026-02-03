@@ -1,10 +1,13 @@
 package pg
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
 
@@ -34,6 +37,10 @@ func (u *utxosQ) Insert(utxo data.Utxo) error {
 
 	err := u.db.Exec(query)
 	if err != nil {
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			err = data.ErrAlreadyExists
+		}
+
 		return err
 	}
 
@@ -61,6 +68,9 @@ func (u *utxosQ) Get(txid string, vout int) (*data.Utxo, error) {
 
 	var utxo data.Utxo
 	err := u.db.Get(&utxo, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, data.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -76,15 +86,19 @@ func (u *utxosQ) Exists(txid string, vout int) (bool, error) {
 		utxosVout,
 	)
 
-	var ok bool
+	var exists bool
 	err := u.db.RawDB().
 		QueryRow(query, txid, vout).
-		Scan(&ok)
+		Scan(&exists)
 	if err != nil {
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			return false, data.ErrAlreadyExists
+		}
+
 		return false, err
 	}
 
-	return ok, nil
+	return exists, nil
 }
 
 func NewUtxosQ(db *pgdb.DB) data.UtxosQ {

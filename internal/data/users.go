@@ -11,7 +11,8 @@ type UsersQ interface {
 	// if user already exists, ErrAlreadyExists is returned
 	Insert(user User) (id int, err error)
 	Get(username string) (*User, error)
-	Exists(id int) (ok bool, err error)
+	Exists(id int) (exists bool, err error)
+	ExistsByUsername(username string) (exists bool, err error)
 }
 
 type User struct {

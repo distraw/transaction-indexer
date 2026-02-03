@@ -2,12 +2,13 @@ package indexer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 	"github.com/distraw/transaction-indexer/internal/data"
-	"gitlab.com/distributed_lab/logan/v3/errors"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -16,15 +17,12 @@ var (
 
 func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResult) error {
 	storage := ctx.Storage(c)
-	utxoStorage := storage.Utxos()
+	utxos := storage.Utxos()
 	log := ctx.Logger(c)
 
 	for _, tx := range block.Tx {
 		for _, in := range tx.Vin {
-			txid := in.Txid
-			vout := in.Vout
-
-			exists, err := storage.Utxos().Exists(txid, int(vout))
+			exists, err := utxos.Exists(in.Txid, int(in.Vout))
 			if err != nil {
 				return errors.Wrap(err, "failed to check utxo existence in db")
 			}
@@ -32,7 +30,7 @@ func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResu
 				continue
 			}
 
-			utxo, err := storage.Utxos().Get(txid, int(vout))
+			utxo, err := utxos.Get(in.Txid, int(in.Vout))
 			if err != nil {
 				return errors.Wrap(err, "failed to fetch utxo from storage")
 			}
@@ -42,38 +40,25 @@ func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResu
 		}
 
 		for _, out := range tx.Vout {
-			spk := out.ScriptPubKey.Hex
+			scriptPubKey := out.ScriptPubKey.Hex
 
-			log.WithField("key", spk).Info("checking for existence...")
-			exists, err := storage.Addresses().Exists(spk)
-			if err != nil {
-				return errors.Wrap(err, "failed to check if address exists")
-			}
-			if !exists {
+			dbAddress, err := storage.Addresses().GetByScriptPubKey(scriptPubKey)
+			if errors.Is(err, data.ErrNotFound) {
 				continue
 			}
-
-			dbAddress, err := storage.Addresses().Get(spk)
 			if err != nil {
 				return errors.Wrap(err, "failed to fetch address from storage")
 			}
 
-			// we need block ID in db in order to insert UTXO correctly,
-			// thus, block must exist in db so we can reference it upon inserting UTXO
-			exists, err = storage.Blocks().Exists(block.Hash)
-			if err != nil {
-				return errors.Wrap(err, "failed to check block existence in storage")
-			}
-			if !exists {
-				return errors.New("processed block does not exist in storage")
-			}
-
 			dbBlock, err := storage.Blocks().Get(block.Hash)
+			if err == data.ErrNotFound {
+				return errors.Wrap(err, "processed block does not exist in storage")
+			}
 			if err != nil {
-				return errors.Wrap(err, "failed to fetch block from storage")
+				return errors.Wrap(err, "failed to get block from storage")
 			}
 
-			utxoStorage.Insert(data.Utxo{
+			utxos.Insert(data.Utxo{
 				Txid: tx.Txid,
 				Vout: int(out.N),
 
@@ -86,13 +71,41 @@ func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResu
 	return nil
 }
 
-// routinePoll() checks for updates on node and processes every new block if it is created
-func routinePoll(c context.Context, initialHash *chainhash.Hash) func() error {
+func processBlock(c context.Context, blockHash *chainhash.Hash) error {
+	rpc := ctx.RPC(c)
 	storage := ctx.Storage(c)
+
+	block, err := rpc.GetBlockVerboseTx(blockHash)
+	if err != nil {
+		return err
+	}
+
+	err = storage.Blocks().Insert(data.Block{
+		Hash:   block.Hash,
+		Height: int32(block.Height),
+	})
+	if errors.Is(err, data.ErrAlreadyExists) {
+		return errors.Wrap(err, "block already exists in db")
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to insert new block into storage")
+	}
+
+	err = processTransactions(c, block)
+	if err != nil {
+		return errors.Wrap(err, "failed to process transactions")
+	}
+
+	return nil
+}
+
+// routinePoll checks for updates on node and processes every new incoming block
+func routinePoll(c context.Context, initialHash *chainhash.Hash) func() error {
 	rpc := ctx.RPC(c)
 	log := ctx.Logger(c)
 
-	currentHash := initialHash
+	var currentHash *chainhash.Hash
+	currentHash = nil
 
 	return func() error {
 		newHash, err := rpc.GetBestBlockHash()
@@ -104,27 +117,23 @@ func routinePoll(c context.Context, initialHash *chainhash.Hash) func() error {
 			return nil
 		}
 
+		defer func() {
+			currentHash, err = chainhash.NewHashFromStr(newHash.String())
+			if err != nil {
+				panic(fmt.Sprintf("failed unexpectedly to generate hash from string: %s", err.Error()))
+			}
+		}()
+
 		log.
 			WithField("prev_hash", currentHash).
 			WithField("new_hash", newHash).
 			Info("new best block detected")
 
-		newBlock, err := rpc.GetBlockVerboseTx(newHash)
+		err = processBlock(c, newHash)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch latest block via rpc")
+			return err
 		}
 
-		storage.Blocks().Insert(data.Block{
-			Hash:   newHash.String(),
-			Height: int32(newBlock.Height),
-		})
-
-		err = processTransactions(c, newBlock)
-		if err != nil {
-			return errors.Wrap(err, "failed to process transactions")
-		}
-
-		currentHash = (*chainhash.Hash)(newHash.CloneBytes())
 		return nil
 	}
 }

@@ -26,7 +26,6 @@ type indexer struct {
 }
 
 func (i *indexer) Run() error {
-	i.log.Debug("fetching best block...")
 	initialHash, err := i.rpc.GetBestBlockHash()
 	if err != nil {
 		return errors.Wrap(err, "failed to poll initial best block hash")

@@ -1,6 +1,8 @@
 package pg
 
 import (
+	"strings"
+
 	"github.com/distraw/transaction-indexer/internal/data"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
@@ -37,14 +39,6 @@ func (s *storage) Utxos() data.UtxosQ {
 }
 
 func (s *storage) AddAddress(userID int, address data.Address) error {
-	exists, err := s.users.Exists(userID)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return data.ErrNotFound
-	}
-
 	addressId, err := s.addresses.Insert(address)
 	if err != nil {
 		return err
@@ -55,16 +49,12 @@ func (s *storage) AddAddress(userID int, address data.Address) error {
 		AddressID: addressId,
 	}
 
-	exists, err = s.usersAddresses.Exists(userAddress)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return data.ErrAlreadyExists
-	}
-
 	err = s.usersAddresses.Insert(userAddress)
 	if err != nil {
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			return data.ErrAlreadyExists
+		}
+
 		return err
 	}
 

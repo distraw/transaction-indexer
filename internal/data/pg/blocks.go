@@ -1,10 +1,13 @@
 package pg
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
 
@@ -26,7 +29,14 @@ func (b *blocksQ) Insert(block data.Block) error {
 	})
 
 	err := b.db.Exec(query)
-	return err
+	if err != nil {
+		if strings.Contains(err.Error(), data.DuplicateErrValue) {
+			return data.ErrAlreadyExists
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (b *blocksQ) Exists(hash string) (bool, error) {
@@ -57,6 +67,9 @@ func (b *blocksQ) Get(hash string) (*data.Block, error) {
 
 	var block data.Block
 	err := b.db.Get(&block, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, data.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +86,9 @@ func (b *blocksQ) GetHighest() (*data.Block, error) {
 
 	var block data.Block
 	err := b.db.Get(&block, query)
+	if err == sql.ErrNoRows {
+		return nil, data.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

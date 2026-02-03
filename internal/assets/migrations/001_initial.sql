@@ -1,5 +1,7 @@
 -- +migrate Up
 
+SET log_min_messages TO FATAL;
+
 CREATE USER healthchecker;
 
 CREATE TABLE users (
@@ -10,7 +12,8 @@ CREATE TABLE users (
 
 CREATE TABLE addresses (
     id SERIAL PRIMARY KEY,
-    addr TEXT NOT NULL UNIQUE
+    addr TEXT NOT NULL UNIQUE,
+    scriptpubkey TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE users_addresses (
@@ -37,9 +40,11 @@ CREATE TABLE utxos (
 
 -- +migrate Down
 
+SET log_min_messages TO DEBUG5;
+
 DROP USER healthchecker;
-DROP TABLE users;
-DROP TABLE addresses;
 DROP TABLE users_addresses;
-DROP TABLE blocks;
+DROP TABLE users;
 DROP TABLE utxos;
+DROP TABLE addresses;
+DROP TABLE blocks;
