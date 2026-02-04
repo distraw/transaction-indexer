@@ -18,11 +18,10 @@ var (
 func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResult) error {
 	storage := ctx.Storage(c)
 	utxos := storage.Utxos()
-	log := ctx.Logger(c)
 
 	for _, tx := range block.Tx {
 		for _, in := range tx.Vin {
-			exists, err := utxos.Exists(in.Txid, int(in.Vout))
+			exists, err := utxos.Exists(in.Txid, in.Vout)
 			if err != nil {
 				return errors.Wrap(err, "failed to check utxo existence in db")
 			}
@@ -35,8 +34,10 @@ func processTransactions(c context.Context, block *btcjson.GetBlockVerboseTxResu
 				return errors.Wrap(err, "failed to fetch utxo from storage")
 			}
 
-			log.Info("deleted utxo")
-			storage.Utxos().Delete(utxo.ID)
+			err = storage.Utxos().Delete(utxo.ID)
+			if err != nil {
+				return errors.Wrap(err, "failed to delete spent utxo from db")
+			}
 		}
 
 		for _, out := range tx.Vout {

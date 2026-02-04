@@ -5,7 +5,7 @@ type UtxosQ interface {
 	Insert(utxo Utxo) error
 	Delete(id int) error
 	Get(txid string, vout int) (*Utxo, error)
-	Exists(txid string, vout int) (bool, error)
+	Exists(txid string, vout uint32) (bool, error)
 }
 
 type Utxo struct {

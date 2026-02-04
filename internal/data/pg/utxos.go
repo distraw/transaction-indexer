@@ -78,7 +78,7 @@ func (u *utxosQ) Get(txid string, vout int) (*data.Utxo, error) {
 	return &utxo, nil
 }
 
-func (u *utxosQ) Exists(txid string, vout int) (bool, error) {
+func (u *utxosQ) Exists(txid string, vout uint32) (bool, error) {
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1 AND %s=$2)",
 		utxosTable,

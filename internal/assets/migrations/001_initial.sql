@@ -33,6 +33,7 @@ CREATE TABLE utxos (
 
     txid TEXT NOT NULL,
     vout INT NOT NULL,
+    UNIQUE(txid, vout),
 
     address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
     block_id INT REFERENCES blocks(id) ON DELETE CASCADE
