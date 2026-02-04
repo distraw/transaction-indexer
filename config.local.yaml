@@ -5,6 +5,10 @@ log:
 listener:
   addr: :8080
 
+indexer:
+  initial_block_height: 4839354
+  poll_frequency_seconds: 10
+
 rpc:
   host: bitcoin-testnet-rpc.publicnode.com:443
   user: rpcuser

@@ -18,6 +18,8 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 		storage = pg.NewStorage(cfg.DB())
 		rpc     = cfg.RPCClient()
 
+		indexerInfo = cfg.IndexerInfo()
+
 		ctx, cancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	)
 	defer cancel()
@@ -34,6 +36,7 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 		storage,
 		logger,
 		rpc,
+		*indexerInfo,
 	)
 
 	go indexer.Run()

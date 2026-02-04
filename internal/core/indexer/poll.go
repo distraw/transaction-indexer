@@ -99,13 +99,52 @@ func processBlock(c context.Context, blockHash *chainhash.Hash) error {
 	return nil
 }
 
-// routinePoll checks for updates on node and processes every new incoming block
-func routinePoll(c context.Context, initialHash *chainhash.Hash) func() error {
+// catchUp processes every block starting from initial height
+// up to the best one before the best available block on the node.
+//
+// Intentionally does not process the best available block, as it would
+// be processed during routinePoll
+func catchUp(c context.Context, initialHeight int64) error {
+	rpc := ctx.RPC(c)
+
+	targetHeight, err := rpc.GetBlockCount()
+	if err != nil {
+		return errors.New("failed to poll remote node for block count")
+	}
+	if initialHeight > targetHeight {
+		return errors.New(fmt.Sprintf(
+			"initial polling height must be less than current block count (%d)",
+			targetHeight,
+		))
+	}
+
+	for i := initialHeight; i < targetHeight; i++ {
+		blockHash, err := rpc.GetBlockHash(i)
+		if err != nil {
+			return errors.New(fmt.Sprintf("failed to poll remote node for block %d", i))
+		}
+
+		err = processBlock(c, blockHash)
+		if err != nil {
+			return errors.New(fmt.Sprintf("failed to process block %s", blockHash.String()))
+		}
+
+		targetHeight, err = rpc.GetBlockCount()
+		if err != nil {
+			return errors.New("failed to poll remote node for block count")
+		}
+	}
+
+	ctx.Logger(c).Infof("Catch-up finished. %d blocks processed", targetHeight-initialHeight)
+	return nil
+}
+
+// routinePoll polls every once in a while and processes every new incoming block
+func routinePoll(c context.Context) func() error {
 	rpc := ctx.RPC(c)
 	log := ctx.Logger(c)
 
 	var currentHash *chainhash.Hash
-	currentHash = nil
 
 	return func() error {
 		newHash, err := rpc.GetBestBlockHash()

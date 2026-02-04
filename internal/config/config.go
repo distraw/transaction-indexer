@@ -13,6 +13,7 @@ type Config interface {
 	pgdb.Databaser
 
 	RPCClient() *rpcclient.Client
+	IndexerInfo() *IndexerInfo
 }
 
 type config struct {
@@ -20,7 +21,8 @@ type config struct {
 	comfig.Listenerer
 	pgdb.Databaser
 
-	rpcclient comfig.Once
+	rpcclient   comfig.Once
+	indexerInfo comfig.Once
 
 	getter kv.Getter
 }
