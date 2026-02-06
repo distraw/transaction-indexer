@@ -29,6 +29,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  bitcoin:
+    image: ruimarinho/bitcoin-core:24
+    container_name: regtest
+    platform: linux/amd64
+    ports:
+      - "18443:18443"
+    command:
+      - -regtest=1
+      - -server=1
+      - -txindex=1
+      - -printtoconsole=1
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=rpcuser_0
+      - -rpcpassword=rpcpassword_0
+      #- -rpcauth=rpcuser_0:527c86ca54b87d202ed68ba43db3f916$$ea1c7ab9cc5c9da6f66cfe6026c56cec9e02d918db82a8452005acce9fe4b8c6
+      - -fallbackfee=0.0001
 
 volumes:
   db-data:
