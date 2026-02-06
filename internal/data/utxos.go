@@ -4,18 +4,19 @@ type UtxosQ interface {
 	New() UtxosQ
 	Insert(utxo Utxo) error
 	Delete(id int) error
+	MarkSpent(txid string, vout int, blockHash string) error
 	Get(txid string, vout int) (*Utxo, error)
 	Exists(txid string, vout uint32) (bool, error)
 }
 
 type Utxo struct {
-	ID int `structs:"id" db:"id"`
+	ID int `db:"id"`
 
-	Txid string `structs:"txid" db:"txid"`
-	Vout int    `structs:"vout" db:"vout"`
+	Txid string `db:"txid"`
+	Vout int    `db:"vout"`
 
-	Value float64 `structs:"value" db:"value"`
+	Value float64 `db:"value"`
 
-	AddressID int `structs:"address_id" db:"address_id"`
-	BlockID   int `structs:"block_id" db:"block_id"`
+	AddressID int `db:"address_id"`
+	BlockID   int `db:"block_id"`
 }

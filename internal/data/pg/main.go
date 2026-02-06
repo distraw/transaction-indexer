@@ -103,11 +103,11 @@ func (s *storage) GetBalance(addr string) (float64, error) {
 	query := fmt.Sprintf(`SELECT COALESCE(SUM(%s.%s), 0) AS balance
 	FROM %s
 	JOIN %s ON %s.%s = %s.%s
-	WHERE %s.%s = $1`,
+	WHERE %s.%s = $1 AND %s IS NULL`,
 		utxosTable, utxosValue,
 		utxosTable,
 		addressesTable, addressesTable, "id", utxosTable, utxosAddressID,
-		addressesTable, addressesAddr,
+		addressesTable, addressesAddr, utxosSpentInBlock,
 	)
 
 	var balance float64

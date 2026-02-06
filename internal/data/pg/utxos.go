@@ -12,10 +12,13 @@ import (
 )
 
 const (
-	utxosTable     = "utxos"
-	utxosTxid      = "txid"
-	utxosVout      = "vout"
-	utxosValue     = "value"
+	utxosTable = "utxos"
+	utxosTxid  = "txid"
+	utxosVout  = "vout"
+	utxosValue = "value"
+
+	utxosSpentInBlock = "spent_in_block"
+
 	utxosBlockID   = "block_id"
 	utxosAddressID = "address_id"
 )
@@ -30,11 +33,12 @@ func (u *utxosQ) New() data.UtxosQ {
 
 func (u *utxosQ) Insert(utxo data.Utxo) error {
 	query := squirrel.Insert(utxosTable).SetMap(map[string]interface{}{
-		utxosTxid:      utxo.Txid,
-		utxosVout:      utxo.Vout,
-		utxosValue:     utxo.Value,
-		utxosBlockID:   utxo.BlockID,
-		utxosAddressID: utxo.AddressID,
+		utxosTxid:         utxo.Txid,
+		utxosVout:         utxo.Vout,
+		utxosValue:        utxo.Value,
+		utxosSpentInBlock: nil,
+		utxosBlockID:      utxo.BlockID,
+		utxosAddressID:    utxo.AddressID,
 	})
 
 	err := u.db.Exec(query)
@@ -52,6 +56,37 @@ func (u *utxosQ) Insert(utxo data.Utxo) error {
 func (u *utxosQ) Delete(id int) error {
 	query := squirrel.Delete(utxosTable).Where(squirrel.Eq{
 		"id": id,
+	})
+
+	err := u.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *utxosQ) MarkSpent(txid string, vout int, blockHash string) error {
+	query := squirrel.Update(utxosTable).SetMap(map[string]interface{}{
+		utxosSpentInBlock: blockHash,
+	}).Where(squirrel.Eq{
+		utxosTxid: txid,
+		utxosVout: vout,
+	})
+
+	err := u.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *utxosQ) MarkUnspentByBlock(blockHash string) error {
+	query := squirrel.Update(utxosTable).SetMap(map[string]interface{}{
+		utxosSpentInBlock: nil,
+	}).Where(squirrel.Eq{
+		utxosSpentInBlock: blockHash,
 	})
 
 	err := u.db.Exec(query)
