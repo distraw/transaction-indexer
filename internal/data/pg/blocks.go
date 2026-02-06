@@ -57,6 +57,19 @@ func (b *blocksQ) Exists(hash string) (bool, error) {
 	return ok, nil
 }
 
+func (b *blocksQ) DeleteUpon(height int32) error {
+	query := squirrel.Delete(blocksTable).Where(squirrel.Gt{
+		blocksHeight: height,
+	})
+
+	err := b.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (b *blocksQ) Get(hash string) (*data.Block, error) {
 	query := squirrel.
 		Select("*").
@@ -81,7 +94,7 @@ func (b *blocksQ) GetHighest() (*data.Block, error) {
 	query := squirrel.
 		Select("*").
 		From(blocksTable).
-		OrderBy(blocksHeight, "DESC").
+		OrderBy(blocksHeight + " DESC").
 		Limit(1)
 
 	var block data.Block

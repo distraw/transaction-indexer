@@ -3,6 +3,7 @@ package data
 type BlocksQ interface {
 	Insert(block Block) error
 	Exists(hash string) (bool, error)
+	DeleteUpon(height int32) error
 	Get(hash string) (*Block, error)
 	GetHighest() (*Block, error)
 }

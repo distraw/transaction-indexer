@@ -17,7 +17,7 @@ const (
 	utxosVout  = "vout"
 	utxosValue = "value"
 
-	utxosSpentInBlock = "spent_in_block"
+	utxosSpentInBlockHeight = "spent_in_block_height"
 
 	utxosBlockID   = "block_id"
 	utxosAddressID = "address_id"
@@ -33,12 +33,12 @@ func (u *utxosQ) New() data.UtxosQ {
 
 func (u *utxosQ) Insert(utxo data.Utxo) error {
 	query := squirrel.Insert(utxosTable).SetMap(map[string]interface{}{
-		utxosTxid:         utxo.Txid,
-		utxosVout:         utxo.Vout,
-		utxosValue:        utxo.Value,
-		utxosSpentInBlock: nil,
-		utxosBlockID:      utxo.BlockID,
-		utxosAddressID:    utxo.AddressID,
+		utxosTxid:               utxo.Txid,
+		utxosVout:               utxo.Vout,
+		utxosValue:              utxo.Value,
+		utxosSpentInBlockHeight: nil,
+		utxosBlockID:            utxo.BlockID,
+		utxosAddressID:          utxo.AddressID,
 	})
 
 	err := u.db.Exec(query)
@@ -66,9 +66,9 @@ func (u *utxosQ) Delete(id int) error {
 	return nil
 }
 
-func (u *utxosQ) MarkSpent(txid string, vout int, blockHash string) error {
+func (u *utxosQ) MarkSpent(txid string, vout int, blockHeight int32) error {
 	query := squirrel.Update(utxosTable).SetMap(map[string]interface{}{
-		utxosSpentInBlock: blockHash,
+		utxosSpentInBlockHeight: blockHeight,
 	}).Where(squirrel.Eq{
 		utxosTxid: txid,
 		utxosVout: vout,
@@ -82,11 +82,11 @@ func (u *utxosQ) MarkSpent(txid string, vout int, blockHash string) error {
 	return nil
 }
 
-func (u *utxosQ) MarkUnspentByBlock(blockHash string) error {
+func (u *utxosQ) MarkUnspentAboveHeight(blockHeight int32) error {
 	query := squirrel.Update(utxosTable).SetMap(map[string]interface{}{
-		utxosSpentInBlock: nil,
-	}).Where(squirrel.Eq{
-		utxosSpentInBlock: blockHash,
+		utxosSpentInBlockHeight: nil,
+	}).Where(squirrel.Gt{
+		utxosSpentInBlockHeight: blockHeight,
 	})
 
 	err := u.db.Exec(query)

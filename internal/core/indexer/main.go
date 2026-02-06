@@ -4,10 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/config"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/madflojo/tasks"
+	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/logan/v3"
 )
 
@@ -37,11 +39,26 @@ func (i *indexer) Run() error {
 
 	i.log.Infof("Starting from block %d", i.initialBlockHeight)
 
-	i.catchUp(i.initialBlockHeight)
+	err := i.catchUp(i.initialBlockHeight)
+	if err != nil {
+		panic(err)
+	}
+
+	var hash *chainhash.Hash = nil
+	block, err := i.storage.Blocks().GetHighest()
+	if err == nil {
+		hash, err = chainhash.NewHashFromStr(block.Hash)
+		if err != nil {
+			panic(err)
+		}
+	}
+	if err != nil && !errors.Is(err, data.ErrNotFound) {
+		panic(err)
+	}
 
 	id, err := i.scheduler.Add(&tasks.Task{
 		Interval: i.pollFrequency,
-		TaskFunc: i.routinePoll(),
+		TaskFunc: i.routinePoll(hash),
 		ErrFunc: func(err error) {
 			i.log.WithError(err).Error("poller failed during routine poll")
 		},

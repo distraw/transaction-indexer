@@ -37,7 +37,7 @@ CREATE TABLE utxos (
 
     value DECIMAL NOT NULL,
 
-    spent_in_block TEXT,
+    spent_in_block_height INT,
 
     address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
     block_id INT REFERENCES blocks(id) ON DELETE CASCADE

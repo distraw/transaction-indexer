@@ -107,7 +107,7 @@ func (s *storage) GetBalance(addr string) (float64, error) {
 		utxosTable, utxosValue,
 		utxosTable,
 		addressesTable, addressesTable, "id", utxosTable, utxosAddressID,
-		addressesTable, addressesAddr, utxosSpentInBlock,
+		addressesTable, addressesAddr, utxosSpentInBlockHeight,
 	)
 
 	var balance float64

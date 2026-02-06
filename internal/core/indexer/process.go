@@ -11,7 +11,7 @@ var (
 	ErrUnusualScript = errors.New("non-usual script detected")
 )
 
-func (i *indexer) processInputs(vin []btcjson.Vin) error {
+func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 	utxos := i.storage.Utxos()
 
 	for _, in := range vin {
@@ -23,12 +23,7 @@ func (i *indexer) processInputs(vin []btcjson.Vin) error {
 			continue
 		}
 
-		utxo, err := utxos.Get(in.Txid, int(in.Vout))
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch utxo from storage")
-		}
-
-		err = utxos.Delete(utxo.ID)
+		err = utxos.MarkSpent(in.Txid, int(in.Vout), blockHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete spent utxo from db")
 		}
@@ -73,7 +68,7 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, block *btcjson.GetBlockVer
 
 func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult) error {
 	for _, tx := range block.Tx {
-		err := i.processInputs(tx.Vin)
+		err := i.processInputs(tx.Vin, int32(block.Height))
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction inputs")
 		}

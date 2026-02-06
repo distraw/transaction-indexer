@@ -4,7 +4,8 @@ type UtxosQ interface {
 	New() UtxosQ
 	Insert(utxo Utxo) error
 	Delete(id int) error
-	MarkSpent(txid string, vout int, blockHash string) error
+	MarkSpent(txid string, vout int, blockHeight int32) error
+	MarkUnspentAboveHeight(blockHeight int32) error
 	Get(txid string, vout int) (*Utxo, error)
 	Exists(txid string, vout uint32) (bool, error)
 }
@@ -15,7 +16,8 @@ type Utxo struct {
 	Txid string `db:"txid"`
 	Vout int    `db:"vout"`
 
-	Value float64 `db:"value"`
+	Value              float64 `db:"value"`
+	SpentInBlockHeight *int32  `db:"spent_in_block_height"`
 
 	AddressID int `db:"address_id"`
 	BlockID   int `db:"block_id"`

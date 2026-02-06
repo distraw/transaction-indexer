@@ -8,8 +8,8 @@ import (
 )
 
 // routinePoll polls every once in a while and processes every new incoming block
-func (i *indexer) routinePoll() func() error {
-	var currentHash *chainhash.Hash
+func (i *indexer) routinePoll(initialHash *chainhash.Hash) func() error {
+	var currentHash *chainhash.Hash = initialHash
 
 	return func() error {
 		newHash, err := i.rpc.GetBestBlockHash()
@@ -19,6 +19,17 @@ func (i *indexer) routinePoll() func() error {
 		if newHash.IsEqual(currentHash) {
 			// new block was not mined yet
 			return nil
+		}
+
+		newBlockHeader, err := i.rpc.GetBlockHeaderVerbose(newHash)
+		if err != nil {
+			return err
+		}
+		if currentHash != nil && newBlockHeader.PreviousHash != currentHash.String() {
+			err := i.reorganize(newBlockHeader)
+			if err != nil {
+				return err
+			}
 		}
 
 		defer func() {
