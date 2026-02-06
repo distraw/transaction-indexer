@@ -24,6 +24,7 @@ func (s *server) httpRouter() http.Handler {
 
 	router.With(AuthMiddleware()).Post("/addresses", request.PostAddresses)
 	router.With(AuthMiddleware()).Get("/addresses", request.GetAddresses)
+	router.With(AuthMiddleware()).Get("/addresses/{address}/balance", request.Balance)
 
 	return router
 }

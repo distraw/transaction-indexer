@@ -1,8 +1,10 @@
 package pg
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
@@ -81,6 +83,40 @@ func (s *storage) GetAddresses(userID int) ([]data.Address, error) {
 	}
 
 	return addresses, nil
+}
+
+func (s *storage) IsTracking(userID int, addr string) (bool, error) {
+	spk, err := bitcoin.ToScriptPubKey(addr)
+	if err != nil {
+		return false, err
+	}
+
+	address, err := s.addresses.GetByScriptPubKey(spk)
+	if err != nil {
+		return false, err
+	}
+
+	return address.ID == userID, nil
+}
+
+func (s *storage) GetBalance(addr string) (float64, error) {
+	query := fmt.Sprintf(`SELECT COALESCE(SUM(%s.%s), 0) AS balance
+	FROM %s
+	JOIN %s ON %s.%s = %s.%s
+	WHERE %s.%s = $1`,
+		utxosTable, utxosValue,
+		utxosTable,
+		addressesTable, addressesTable, "id", utxosTable, utxosAddressID,
+		addressesTable, addressesAddr,
+	)
+
+	var balance float64
+	err := s.db.GetRaw(&balance, query, addr)
+	if err != nil {
+		return -1, err
+	}
+
+	return balance, nil
 }
 
 func (s *storage) New() data.Storage {

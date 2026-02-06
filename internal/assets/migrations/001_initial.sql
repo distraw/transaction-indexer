@@ -35,6 +35,8 @@ CREATE TABLE utxos (
     vout INT NOT NULL,
     UNIQUE(txid, vout),
 
+    value DECIMAL NOT NULL,
+
     address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
     block_id INT REFERENCES blocks(id) ON DELETE CASCADE
 );

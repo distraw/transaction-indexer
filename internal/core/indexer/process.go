@@ -61,6 +61,8 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, block *btcjson.GetBlockVer
 			Txid: txid,
 			Vout: int(out.N),
 
+			Value: out.Value,
+
 			BlockID:   dbBlock.ID,
 			AddressID: dbAddress.ID,
 		})

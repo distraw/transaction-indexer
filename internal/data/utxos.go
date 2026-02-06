@@ -14,6 +14,8 @@ type Utxo struct {
 	Txid string `structs:"txid" db:"txid"`
 	Vout int    `structs:"vout" db:"vout"`
 
+	Value float64 `structs:"value" db:"value"`
+
 	AddressID int `structs:"address_id" db:"address_id"`
 	BlockID   int `structs:"block_id" db:"block_id"`
 }

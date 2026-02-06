@@ -15,6 +15,7 @@ const (
 	utxosTable     = "utxos"
 	utxosTxid      = "txid"
 	utxosVout      = "vout"
+	utxosValue     = "value"
 	utxosBlockID   = "block_id"
 	utxosAddressID = "address_id"
 )
@@ -31,6 +32,7 @@ func (u *utxosQ) Insert(utxo data.Utxo) error {
 	query := squirrel.Insert(utxosTable).SetMap(map[string]interface{}{
 		utxosTxid:      utxo.Txid,
 		utxosVout:      utxo.Vout,
+		utxosValue:     utxo.Value,
 		utxosBlockID:   utxo.BlockID,
 		utxosAddressID: utxo.AddressID,
 	})
