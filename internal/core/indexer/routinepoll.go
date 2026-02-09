@@ -26,7 +26,7 @@ func (i *indexer) routinePoll(initialHash *chainhash.Hash) func() error {
 			return err
 		}
 		if currentHash != nil && newBlockHeader.PreviousHash != currentHash.String() {
-			err := i.reorganize(newBlockHeader)
+			err = i.reorganize(newBlockHeader)
 			if err != nil {
 				return err
 			}

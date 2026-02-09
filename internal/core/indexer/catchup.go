@@ -7,11 +7,10 @@ import (
 )
 
 // catchUp processes every block starting from initial height
-// up to the best one before the best available block on the node.
-//
-// Intentionally does not process the best available block, as it would
-// be processed during routinePoll
+// up to the best one included.
 func (i *indexer) catchUp(initialHeight int64) error {
+	CatchedUp = false
+
 	targetHeight, err := i.rpc.GetBlockCount()
 	if err != nil {
 		return errors.New("failed to poll remote node for block count")
@@ -24,7 +23,7 @@ func (i *indexer) catchUp(initialHeight int64) error {
 	}
 
 	i.log.Infof("Catch-up started. %d blocks are estimated to process", targetHeight-initialHeight)
-	for j := initialHeight; j < targetHeight; j++ {
+	for j := initialHeight; j <= targetHeight; j++ {
 		blockHash, err := i.rpc.GetBlockHash(j)
 		if err != nil {
 			return errors.New(fmt.Sprintf("failed to poll remote node for block %d", j))
@@ -42,5 +41,6 @@ func (i *indexer) catchUp(initialHeight int64) error {
 	}
 
 	i.log.Infof("Catch-up finished. %d blocks processed", targetHeight-initialHeight)
+	CatchedUp = true
 	return nil
 }

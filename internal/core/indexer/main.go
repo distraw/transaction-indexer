@@ -31,7 +31,9 @@ type indexer struct {
 
 var (
 	// TODO: delete or fix this
-	Start = make(chan bool, 1)
+	Start     = make(chan bool, 1)
+	Launched  = false
+	CatchedUp = false
 )
 
 func (i *indexer) Run() error {
@@ -70,6 +72,7 @@ func (i *indexer) Run() error {
 			Error("scheduler failed unexpectedly")
 	}
 
+	Launched = true
 	<-i.context.Done()
 	i.scheduler.Stop()
 	return nil
