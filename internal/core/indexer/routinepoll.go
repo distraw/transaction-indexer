@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/pkg/errors"
 )
 
@@ -45,6 +46,9 @@ func (i *indexer) routinePoll(initialHash *chainhash.Hash) func() error {
 			Info("new best block detected")
 
 		err = i.processBlock(newHash)
+		if errors.Is(err, data.ErrAlreadyExists) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
