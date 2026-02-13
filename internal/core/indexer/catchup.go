@@ -13,7 +13,7 @@ func (i *indexer) catchUp(initialHeight int64) error {
 
 	targetHeight, err := i.rpc.GetBlockCount()
 	if err != nil {
-		return errors.New("failed to poll remote node for block count")
+		return errors.Wrap(err, "failed to get block count from rpc client")
 	}
 	if initialHeight > targetHeight {
 		return errors.New(fmt.Sprintf(
@@ -26,17 +26,17 @@ func (i *indexer) catchUp(initialHeight int64) error {
 	for j := initialHeight; j <= targetHeight; j++ {
 		blockHash, err := i.rpc.GetBlockHash(j)
 		if err != nil {
-			return errors.New(fmt.Sprintf("failed to poll remote node for block %d", j))
+			return errors.Wrapf(err, "failed to get block hash on height %d from rpc client", j)
 		}
 
 		err = i.processBlock(blockHash)
 		if err != nil {
-			return errors.New(fmt.Sprintf("failed to process block %s", blockHash.String()))
+			return errors.Wrapf(err, "failed to process block %s", blockHash.String())
 		}
 
 		targetHeight, err = i.rpc.GetBlockCount()
 		if err != nil {
-			return errors.New("failed to poll remote node for block count")
+			return errors.Wrap(err, "failed to get block count from rpc client")
 		}
 	}
 

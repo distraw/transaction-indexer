@@ -83,9 +83,19 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult) er
 }
 
 func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
+	header, err := i.rpc.GetBlockHeaderVerbose(blockHash)
+	if err != nil {
+		return errors.Wrap(err, "failed to get verbose block header from rpc client")
+	}
+
+	err = i.validateBlockHeader(header)
+	if err != nil {
+		return errors.Wrap(err, "invalid block header")
+	}
+
 	block, err := i.rpc.GetBlockVerboseTx(blockHash)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
 	}
 
 	err = i.storage.Blocks().Insert(data.Block{
