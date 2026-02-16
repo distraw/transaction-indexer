@@ -11,7 +11,8 @@ type Storage interface {
 	GetAddresses(userID int) ([]Address, error)
 	IsTracking(userID int, addr string) (bool, error)
 
-	GetBalance(addr string) (float64, error)
+	GetBalance(addr string) (*float64, error)
+	GetUtxos(addr string) ([]Utxo, error)
 
 	New() Storage
 }

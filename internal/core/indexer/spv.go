@@ -29,7 +29,7 @@ func hashToBigEndian(rawHash string) (*big.Int, error) {
 func hexBitsToUint32(bitsHex string) (uint32, error) {
 	bits64, err := strconv.ParseUint(bitsHex, 16, 32)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "failed to parse bitsHex to uint64")
 	}
 
 	return uint32(bits64), nil

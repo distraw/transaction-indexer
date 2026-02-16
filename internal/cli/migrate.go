@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/distraw/transaction-indexer/internal/assets"
+	"github.com/distraw/transaction-indexer/assets"
 	"github.com/distraw/transaction-indexer/internal/config"
 	migrate "github.com/rubenv/sql-migrate"
 	"gitlab.com/distributed_lab/logan/v3/errors"

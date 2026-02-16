@@ -13,39 +13,36 @@ import (
 func Login(w http.ResponseWriter, r *http.Request) {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		http.Error(w, "401 unauthorized (basic auth header is missing or invalid)", http.StatusUnauthorized)
+		http.Error(w, "basic auth header is missing or invalid", http.StatusUnauthorized)
 		return
 	}
 
-	c := r.Context()
-	log := ctx.Logger(c)
-	user, err := ctx.Storage(c).Users().Get(username)
+	user, err := ctx.Storage(r.Context()).Users().Get(username)
 	if err == data.ErrNotFound {
-		http.Error(w, "401 unauthorized (invalid credentials)", http.StatusUnauthorized)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	if err != nil {
-		log.WithError(err).Error("db failed unexpectedly")
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		ctx.Logger(r.Context()).WithError(err).Error("db failed unexpectedly")
+		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		http.Error(w, "401 unauthorized (invalid credentials)", http.StatusUnauthorized)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	if err != nil {
-		log.WithError(err).
-			Error("password comparison failed unexpectedly")
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		ctx.Logger(r.Context()).WithError(err).Error("password comparison failed unexpectedly")
+		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
-	signedJWT, err := token.Sign(ctx.JWTSecret(c), username)
+	signedJWT, err := token.Sign(ctx.JWTSecret(r.Context()), username)
 	if err != nil {
-		log.WithError(err).Error("failed unexpectedly to issue signed jwt")
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		ctx.Logger(r.Context()).WithError(err).Error("failed unexpectedly to issue signed jwt")
+		http.Error(w, "", http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-type", "application/json")

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/distraw/transaction-indexer/internal/core/indexer"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"gitlab.com/distributed_lab/logan/v3"
 )
@@ -15,6 +16,7 @@ const (
 	logKey
 	userIDKey
 	secretKey
+	indexerKey
 	rpcKey
 )
 
@@ -56,6 +58,16 @@ func JWTSecretProvider(secret []byte) func(context.Context) context.Context {
 
 func JWTSecret(ctx context.Context) []byte {
 	return ctx.Value(secretKey).([]byte)
+}
+
+func IndexerProvider(indexer indexer.Indexer) func(context.Context) context.Context {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, indexerKey, indexer)
+	}
+}
+
+func Indexer(ctx context.Context) indexer.Indexer {
+	return ctx.Value(indexerKey).(indexer.Indexer)
 }
 
 func RPCProvider(rpc *rpcclient.Client) func(context.Context) context.Context {

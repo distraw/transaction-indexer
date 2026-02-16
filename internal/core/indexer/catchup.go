@@ -9,7 +9,7 @@ import (
 // catchUp processes every block starting from initial height
 // up to the best one included.
 func (i *indexer) catchUp(initialHeight int64) error {
-	CatchedUp = false
+	i.catchedUp.Store(false)
 
 	targetHeight, err := i.rpc.GetBlockCount()
 	if err != nil {
@@ -24,14 +24,14 @@ func (i *indexer) catchUp(initialHeight int64) error {
 
 	i.log.Infof("Catch-up started. %d blocks are estimated to process", targetHeight-initialHeight)
 	for j := initialHeight; j <= targetHeight; j++ {
-		blockHash, err := i.rpc.GetBlockHash(j)
+		i.currentHash, err = i.rpc.GetBlockHash(j)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get block hash on height %d from rpc client", j)
 		}
 
-		err = i.processBlock(blockHash)
+		err = i.processBlock(i.currentHash)
 		if err != nil {
-			return errors.Wrapf(err, "failed to process block %s", blockHash.String())
+			return errors.Wrapf(err, "failed to process block %s", i.currentHash.String())
 		}
 
 		targetHeight, err = i.rpc.GetBlockCount()
@@ -41,6 +41,6 @@ func (i *indexer) catchUp(initialHeight int64) error {
 	}
 
 	i.log.Infof("Catch-up finished. %d blocks processed", targetHeight-initialHeight)
-	CatchedUp = true
+	i.catchedUp.Store(true)
 	return nil
 }

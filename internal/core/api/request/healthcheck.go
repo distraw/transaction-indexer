@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/distraw/transaction-indexer/internal/core/indexer"
+	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 )
 
 // TODO: ping DB
@@ -13,7 +13,7 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
 		"alive":     true,
-		"launched":  indexer.Launched,
-		"catchedUp": indexer.CatchedUp,
+		"started":   ctx.Indexer(r.Context()).IsStarted(),
+		"catchedUp": ctx.Indexer(r.Context()).IsCatchedUp(),
 	})
 }

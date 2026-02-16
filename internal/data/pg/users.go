@@ -2,12 +2,12 @@ package pg
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/kit/pgdb"
 )
 
@@ -31,7 +31,7 @@ func (u *usersQ) New() data.UsersQ {
 	return NewUsersQ(u.db.Clone())
 }
 
-func (u *usersQ) Insert(user data.User) (int, error) {
+func (u *usersQ) Insert(user data.User) (*int, error) {
 	query := u.inserter.
 		SetMap(map[string]interface{}{
 			usersUsername: user.Username,
@@ -41,13 +41,13 @@ func (u *usersQ) Insert(user data.User) (int, error) {
 	var id int
 	if err := u.db.Get(&id, query); err != nil {
 		if strings.Contains(err.Error(), data.DuplicateErrValue) {
-			return 0, data.ErrAlreadyExists
+			return nil, data.ErrAlreadyExists
 		}
 
-		return 0, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
-	return id, nil
+	return &id, nil
 }
 
 func (u *usersQ) Get(username string) (*data.User, error) {
@@ -59,7 +59,7 @@ func (u *usersQ) Get(username string) (*data.User, error) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
 	return &user, nil
@@ -77,7 +77,7 @@ func (u *usersQ) Exists(id int) (bool, error) {
 		QueryRow(query, id).
 		Scan(&exists)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to scan results of raw db query")
 	}
 
 	return exists, nil
@@ -95,7 +95,7 @@ func (u *usersQ) ExistsByUsername(username string) (bool, error) {
 		QueryRow(query, username).
 		Scan(&exists)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to scan results of raw db query")
 	}
 
 	return exists, nil

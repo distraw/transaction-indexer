@@ -10,6 +10,7 @@ import (
 	"github.com/distraw/transaction-indexer/internal/core/indexer"
 	"github.com/distraw/transaction-indexer/internal/data/pg"
 	"gitlab.com/distributed_lab/logan/v3/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 func RunServer(cfg config.Config, jwtSecret []byte) error {
@@ -24,27 +25,34 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 	)
 	defer cancel()
 
-	server := server.NewServer(
-		cfg.Listener(),
-		storage,
-		logger,
-		jwtSecret,
-	)
+	g, ctx := errgroup.WithContext(ctx)
 
 	indexer := indexer.New(
 		ctx,
 		storage,
 		logger,
 		rpc,
-		*indexerInfo,
+		indexerInfo,
 	)
 
-	go indexer.Run()
+	server := server.NewServer(
+		cfg.Listener(),
+		storage,
+		indexer,
+		logger,
+		jwtSecret,
+	)
 
-	err := server.RunHTTP(ctx)
-	if err != nil {
-		return errors.Wrap(err, "http server failed unexpectedly")
-	}
+	g.Go(func() error {
+		return indexer.Run()
+	})
 
-	return nil
+	g.Go(func() error {
+		if err := server.RunHTTP(ctx); err != nil {
+			return errors.Wrap(err, "http server failed unexpectedly")
+		}
+		return nil
+	})
+
+	return g.Wait()
 }

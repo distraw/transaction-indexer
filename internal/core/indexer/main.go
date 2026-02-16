@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -13,8 +14,17 @@ import (
 	"gitlab.com/distributed_lab/logan/v3"
 )
 
+var (
+	ErrAlreadyStarted = errors.New("indexer already started")
+)
+
 type Indexer interface {
 	Run() error
+
+	IsStarted() bool
+	IsCatchedUp() bool
+
+	Start() error
 }
 
 type indexer struct {
@@ -25,56 +35,74 @@ type indexer struct {
 	rpc       *rpcclient.Client
 	scheduler *tasks.Scheduler
 
+	start     chan struct{}
+	started   atomic.Bool
+	catchedUp atomic.Bool
+
 	pollFrequency      time.Duration
 	initialBlockHeight int64
+
+	currentHash *chainhash.Hash
 }
 
-var (
-	// TODO: delete or fix this
-	Start     = make(chan bool, 1)
-	Launched  = false
-	CatchedUp = false
-)
-
 func (i *indexer) Run() error {
-	<-Start
+	select {
+	case <-i.start:
+	case <-i.context.Done():
+		return i.context.Err()
+	}
 
+	i.started.Store(true)
 	i.log.Infof("Starting from block %d", i.initialBlockHeight)
 
 	err := i.catchUp(i.initialBlockHeight)
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to catch-up to initial block height")
 	}
 
-	var hash *chainhash.Hash = nil
 	block, err := i.storage.Blocks().GetHighest()
+	if err != nil && !errors.Is(err, data.ErrNotFound) {
+		return errors.Wrap(err, "failed to get highest block from db")
+	}
+	// if error is data.ErrNotFound, there are no previous blocks in db (db is clean),
+	// so we leave currentHash empty for poll() to get first block
 	if err == nil {
-		hash, err = chainhash.NewHashFromStr(block.Hash)
+		i.currentHash, err = chainhash.NewHashFromStr(block.Hash)
 		if err != nil {
-			panic(err)
+			return errors.Wrap(err, "failed to generate hash from string")
 		}
 	}
-	if err != nil && !errors.Is(err, data.ErrNotFound) {
-		panic(err)
-	}
 
-	id, err := i.scheduler.Add(&tasks.Task{
+	defer i.scheduler.Stop()
+	_, err = i.scheduler.Add(&tasks.Task{
 		Interval: i.pollFrequency,
-		TaskFunc: i.routinePoll(hash),
+		TaskFunc: i.poll,
 		ErrFunc: func(err error) {
 			i.log.WithError(err).Error("poller failed during routine poll")
 		},
 	})
 	if err != nil {
-		i.log.
-			WithError(err).
-			WithField("id", id).
-			Error("scheduler failed unexpectedly")
+		return errors.Wrap(err, "scheduler failed unexpectedly")
 	}
 
-	Launched = true
 	<-i.context.Done()
-	i.scheduler.Stop()
+	return nil
+}
+
+func (i *indexer) IsStarted() bool {
+	return i.started.Load()
+}
+
+func (i *indexer) IsCatchedUp() bool {
+	return i.catchedUp.Load()
+}
+
+func (i *indexer) Start() error {
+	if !i.started.CompareAndSwap(false, true) {
+		return ErrAlreadyStarted
+	}
+
+	close(i.start)
 	return nil
 }
 
@@ -86,9 +114,11 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 		log:     log,
 		rpc:     rpc,
 
-		pollFrequency:      info.PollFrequency,
-		initialBlockHeight: info.InitialBlockHeight,
+		pollFrequency:      info.GetPollFrequency(),
+		initialBlockHeight: info.GetInitialBlockHeight(),
 
 		scheduler: tasks.New(),
+
+		start: make(chan struct{}),
 	}
 }

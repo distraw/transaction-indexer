@@ -9,16 +9,16 @@ import (
 	"github.com/josemiguelmelo/btcaddressvalidator"
 )
 
-func GetBalance(w http.ResponseWriter, r *http.Request) {
-	addr := chi.URLParam(r, "address")
+func GetUtxos(w http.ResponseWriter, r *http.Request) {
+	address := chi.URLParam(r, "address")
 
-	_, err := btcaddressvalidator.CheckBtcAddress(addr)
+	_, err := btcaddressvalidator.CheckBtcAddress(address)
 	if err != nil {
 		http.Error(w, "invalid btc address format", http.StatusUnprocessableEntity)
 		return
 	}
 
-	tracks, err := ctx.Storage(r.Context()).IsTracking(*ctx.UserID(r.Context()), addr)
+	tracks, err := ctx.Storage(r.Context()).IsTracking(*ctx.UserID(r.Context()), address)
 	switch {
 	case err != nil:
 		ctx.Logger(r.Context()).WithError(err).Error("failed to access db to check if user tracks the address")
@@ -29,13 +29,13 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	balance, err := ctx.Storage(r.Context()).GetBalance(addr)
+	utxos, err := ctx.Storage(r.Context()).GetUtxos(address)
 	if err != nil {
-		ctx.Logger(r.Context()).WithError(err).Error("failed to access db to check if user tracks the address")
+		ctx.Logger(r.Context()).WithError(err).Errorf("failed to get utxos from db: %s", err.Error())
 		http.Error(w, "", http.StatusInternalServerError)
-		return
 	}
 
 	w.Header().Set("Content-type", "application/json")
-	json.NewEncoder(w).Encode(&balance)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(utxos)
 }

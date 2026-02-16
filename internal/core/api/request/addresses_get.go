@@ -8,26 +8,18 @@ import (
 )
 
 func GetAddresses(w http.ResponseWriter, r *http.Request) {
-	c := r.Context()
-
-	storage := ctx.Storage(c)
-	userID := ctx.UserID(c)
-
-	addresses, err := storage.GetAddresses(*userID)
+	dbAddresses, err := ctx.Storage(r.Context()).GetAddresses(*ctx.UserID(r.Context()))
 	if err != nil {
-		ctx.Logger(c).
+		ctx.Logger(r.Context()).
 			WithError(err).
-			WithField("user_id", userID).
+			WithField("user_id", *ctx.UserID(r.Context())).
 			Error("failed unexpectedly to get all addresses related to the user")
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
 
-	addrs := make([]string, len(addresses))
-	for i, a := range addresses {
-		addrs[i] = a.Addr
-	}
+	rawAddresses := extractRawAddresses(dbAddresses)
 
 	w.Header().Set("Content-type", "application/json")
-	json.NewEncoder(w).Encode(addrs)
+	json.NewEncoder(w).Encode(rawAddresses)
 }

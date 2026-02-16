@@ -27,7 +27,7 @@ func Parse(tokenString string, secret []byte) (*jwt.RegisteredClaims, error) {
 	_, err := jwt.ParseWithClaims(
 		tokenString,
 		claims,
-		func(token *jwt.Token) (interface{}, error) {
+		func(_ *jwt.Token) (interface{}, error) {
 			return secret, nil
 		},
 		jwt.WithValidMethods([]string{signingMethod.Name}),

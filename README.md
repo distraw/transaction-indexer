@@ -15,7 +15,7 @@ GET http://localhost:8080/addresses - get the list of all tracked addresses by t
 
 GET http://localhost:8080/addresses/<address>/balance - get the current (unmature) balance of the tracked address. Address should be added beforehand using POST /addresses method and JWT is needed.
 
-POST http://localhost:8080/launch – launch the indexer. It would catch-up from the given block to the newest one and than make routine poll to synchronize with node every once in a while
+POST http://localhost:8080/start – start the indexer. It would catch-up from the given block to the newest one and than make routine poll to synchronize with node every once in a while
 ```
 ## Run
 1) Clone the repo:
@@ -65,9 +65,9 @@ curl -X POST \
      -d '{"addr":"<address>"}' \
      http://localhost:8080/addresses
 ```
-7) After everything is setupped, launch the indexer to do initial catch-up and poll routinely on the node
+7) After everything is setupped, start the indexer to do initial catch-up and poll routinely on the node
 ```
-curl -X POST http://localhost:8080/launch
+curl -X POST http://localhost:8080/start
 ```
 8) Track your balances
 ```

@@ -11,14 +11,14 @@ type UtxosQ interface {
 }
 
 type Utxo struct {
-	ID int `db:"id"`
+	ID int `db:"id" json:"-"`
 
-	Txid string `db:"txid"`
-	Vout int    `db:"vout"`
+	Txid string `db:"txid" json:"txid"`
+	Vout int    `db:"vout" json:"vout"`
 
-	Value              float64 `db:"value"`
-	SpentInBlockHeight *int32  `db:"spent_in_block_height"`
+	Value              float64 `db:"value" json:"value"`
+	SpentInBlockHeight *int32  `db:"spent_in_block_height" json:"spent_in_block_height"`
 
-	AddressID int `db:"address_id"`
-	BlockID   int `db:"block_id"`
+	AddressID int `db:"address_id" json:"-"`
+	BlockID   int `db:"block_id" json:"-"`
 }

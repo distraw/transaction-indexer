@@ -9,7 +9,7 @@ type UsersQ interface {
 	// and returned as a result alongside the possible error
 	//
 	// if user already exists, ErrAlreadyExists is returned
-	Insert(user User) (id int, err error)
+	Insert(user User) (id *int, err error)
 	Get(username string) (*User, error)
 	Exists(id int) (exists bool, err error)
 	ExistsByUsername(username string) (exists bool, err error)

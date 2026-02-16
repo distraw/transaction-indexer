@@ -9,33 +9,31 @@ import (
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
-	c := r.Context()
-	log := ctx.Logger(c)
-
 	username, password, ok := r.BasicAuth()
 	if !ok || len(username) == 0 || len(password) == 0 {
-		http.Error(w, "401 unauthorized (invalid authorization header)", http.StatusUnauthorized)
+		http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "400 bad request (password must be less than 72 symbols)", http.StatusBadRequest)
+		http.Error(w, "password must be less than 72 symbols", http.StatusBadRequest)
+		return
 	}
 
-	_, err = ctx.Storage(c).Users().Insert(data.User{
+	_, err = ctx.Storage(r.Context()).Users().Insert(data.User{
 		Username: username,
 		Password: hashedPassword,
 	})
 
 	if err == data.ErrAlreadyExists {
-		http.Error(w, "409 conflict (username was already taken)", http.StatusConflict)
+		http.Error(w, "username was already taken", http.StatusConflict)
 		return
 	}
-
 	if err != nil {
-		log.WithError(err).Error()
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		ctx.Logger(r.Context()).WithError(err).Error("failed to insert new user into storage")
+		http.Error(w, "", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

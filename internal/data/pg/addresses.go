@@ -27,15 +27,7 @@ func (a *addressesQ) New() data.AddressesQ {
 	return NewAddressesQ(a.db.Clone())
 }
 
-func (a *addressesQ) Insert(address data.Address) (int, error) {
-	exists, err := a.Exists(address.Addr)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to check address existence before inserting")
-	}
-	if exists {
-		return 0, data.ErrAlreadyExists
-	}
-
+func (a *addressesQ) Insert(address data.Address) (*int, error) {
 	query := a.inserter.SetMap(map[string]interface{}{
 		addressesAddr:         address.Addr,
 		addressesScriptPubKey: address.ScriptPubKey,
@@ -46,12 +38,12 @@ func (a *addressesQ) Insert(address data.Address) (int, error) {
 		Suffix("RETURNING id")
 
 	var id int
-	err = a.db.Get(&id, query)
+	err := a.db.Get(&id, query)
 	if err != nil {
-		return 0, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
-	return id, nil
+	return &id, nil
 }
 
 func (a *addressesQ) GetByScriptPubKey(scriptPubKey string) (*data.Address, error) {
@@ -65,7 +57,7 @@ func (a *addressesQ) GetByScriptPubKey(scriptPubKey string) (*data.Address, erro
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
 	return &address, nil
@@ -83,7 +75,7 @@ func (a *addressesQ) Exists(addr string) (bool, error) {
 		QueryRow(query, addr).
 		Scan(&ok)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to scan raw db query row")
 	}
 
 	return ok, nil
@@ -101,7 +93,7 @@ func (a *addressesQ) ExistsByScriptPubKey(spk string) (bool, error) {
 		QueryRow(query, spk).
 		Scan(&ok)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to execute raw db query")
 	}
 
 	return ok, nil
@@ -118,11 +110,11 @@ func (a *addressesQ) SelectAddresses(ids []int) ([]data.Address, error) {
 
 	var addrs []data.Address
 	err := a.db.Select(&addrs, query)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to select from db")
 	}
 
 	return addrs, nil

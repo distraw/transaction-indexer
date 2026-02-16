@@ -13,7 +13,7 @@ type Config interface {
 	pgdb.Databaser
 
 	RPCClient() *rpcclient.Client
-	IndexerInfo() *IndexerInfo
+	IndexerInfo() IndexerInfo
 }
 
 type config struct {

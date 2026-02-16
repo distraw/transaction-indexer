@@ -12,12 +12,38 @@ const (
 	indexerInfoKey = "indexer"
 )
 
-type IndexerInfo struct {
+type IndexerInfo interface {
+	GetPollFrequency() time.Duration
+	GetInitialBlockHeight() int64
+}
+
+type indexerInfo struct {
 	PollFrequency      time.Duration
 	InitialBlockHeight int64
 }
 
-func (c *config) IndexerInfo() *IndexerInfo {
+func (i *indexerInfo) GetPollFrequency() time.Duration {
+	return i.PollFrequency
+}
+
+func (i *indexerInfo) GetInitialBlockHeight() int64 {
+	return i.InitialBlockHeight
+}
+
+func validateIndexerInfo(i indexerInfo) error {
+	if i.PollFrequency < time.Second ||
+		i.PollFrequency > time.Hour*24 {
+		return errors.New("poll frequency must be between 1 second and 24 hours (86400 seconds)")
+	}
+
+	if i.InitialBlockHeight < 0 {
+		return errors.New("initial block height must be greater than 0")
+	}
+
+	return nil
+}
+
+func (c *config) IndexerInfo() IndexerInfo {
 	return c.indexerInfo.Do(func() interface{} {
 		var config struct {
 			PollFrequencySeconds int   `fig:"poll_frequency_seconds"`
@@ -36,20 +62,16 @@ func (c *config) IndexerInfo() *IndexerInfo {
 			panic(errors.New("Poll frequency must be [1; 864000]"))
 		}
 
-		indexerInfo := IndexerInfo{
+		indexerInfo := indexerInfo{
 			PollFrequency:      time.Duration(config.PollFrequencySeconds) * time.Second,
 			InitialBlockHeight: config.InitialBlockHeight,
 		}
 
-		if indexerInfo.PollFrequency < time.Second ||
-			indexerInfo.PollFrequency > time.Hour*24 {
-			panic(errors.New("poll frequency must be between 1 second and 24 hours (86400 seconds)"))
-		}
-
-		if indexerInfo.InitialBlockHeight < 0 {
-			panic(errors.New("initial block height must be greater than 0"))
+		err = validateIndexerInfo(indexerInfo)
+		if err != nil {
+			panic(err)
 		}
 
 		return &indexerInfo
-	}).(*IndexerInfo)
+	}).(IndexerInfo)
 }

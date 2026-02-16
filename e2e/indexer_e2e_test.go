@@ -39,7 +39,7 @@ func TestIndexer_Syncing(t *testing.T) {
 	token := login(t, "user", "123")
 
 	postAddress(t, token, addr)
-	launch(t)
+	start(t)
 	waitFor(t, time.Second*11, func() bool {
 		return healthcheck(t).CatchedUp
 	})
@@ -79,7 +79,7 @@ func TestIndexer_CatchUp(t *testing.T) {
 	token := login(t, "user", "123")
 
 	postAddress(t, token, addr)
-	launch(t)
+	start(t)
 	waitFor(t, time.Second*10, func() bool {
 		return healthcheck(t).CatchedUp
 	})
@@ -113,7 +113,7 @@ func TestIndexer_Reorganizing(t *testing.T) {
 	token := login(t, "user", "123")
 
 	postAddress(t, token, addr)
-	launch(t)
+	start(t)
 	waitFor(t, time.Second*10, func() bool {
 		return healthcheck(t).CatchedUp
 	})
@@ -129,4 +129,50 @@ func TestIndexer_Reorganizing(t *testing.T) {
 	generateToAddress(t, addr, 3)
 	time.Sleep(time.Second * 15)
 	assert.Equal(t, 400, balance(t, token, addr))
+}
+
+func TestIndexer_MultipleUsersAddresses(t *testing.T) {
+	if !imageBuilt {
+		fmt.Println("Building docker image...")
+		buildImage(t)
+		imageBuilt = true
+	}
+
+	fmt.Println("Setupping compose...")
+	setupCompose(t)
+	defer run(t, "docker", "compose", "down", "-v")
+
+	fmt.Println("Setupping regtest node...")
+	setupRegtestNode(t)
+
+	addr0 := getNewAddress(t)
+	addr1 := getNewAddress(t)
+
+	fmt.Println("Generating blocks...")
+	generateToAddress(t, addr0, 3)
+	generateToAddress(t, addr1, 4)
+
+	require.True(t, healthcheck(t).Alive)
+
+	register(t, "user_0", "password_0")
+	register(t, "user_1", "password_1")
+
+	token0 := login(t, "user_0", "password_0")
+	token1 := login(t, "user_1", "password_1")
+
+	postAddress(t, token0, addr0)
+	postAddress(t, token1, addr0)
+
+	postAddress(t, token0, addr1)
+	postAddress(t, token1, addr1)
+
+	start(t)
+	waitFor(t, time.Second*10, func() bool {
+		return healthcheck(t).CatchedUp
+	})
+
+	assert.Equal(t, 150, balance(t, token0, addr0))
+	assert.Equal(t, 200, balance(t, token0, addr1))
+	assert.Equal(t, 150, balance(t, token1, addr0))
+	assert.Equal(t, 200, balance(t, token1, addr1))
 }

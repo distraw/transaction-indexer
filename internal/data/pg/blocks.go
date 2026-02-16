@@ -33,7 +33,7 @@ func (b *blocksQ) Insert(block data.Block) error {
 		if strings.Contains(err.Error(), data.DuplicateErrValue) {
 			return data.ErrAlreadyExists
 		}
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -51,7 +51,7 @@ func (b *blocksQ) Exists(hash string) (bool, error) {
 		QueryRow(query, hash).
 		Scan(&ok)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to scan results of a db query")
 	}
 
 	return ok, nil
@@ -64,7 +64,7 @@ func (b *blocksQ) DeleteUpon(height int32) error {
 
 	err := b.db.Exec(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func (b *blocksQ) Get(hash string) (*data.Block, error) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
 	return &block, nil
@@ -103,7 +103,7 @@ func (b *blocksQ) GetHighest() (*data.Block, error) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
 	return &block, nil

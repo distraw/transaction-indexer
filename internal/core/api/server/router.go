@@ -20,11 +20,17 @@ func (s *server) httpRouter() http.Handler {
 	router.Get("/healthcheck", request.Healthcheck)
 	router.Post("/register", request.Register)
 	router.Post("/login", request.Login)
-	router.Post("/launch", request.Launch)
+	router.Post("/start", request.Start)
 
-	router.With(AuthMiddleware()).Post("/addresses", request.PostAddresses)
-	router.With(AuthMiddleware()).Get("/addresses", request.GetAddresses)
-	router.With(AuthMiddleware()).Get("/addresses/{address}/balance", request.Balance)
+	router.Route("/addresses", func(r chi.Router) {
+		r.Use(AuthMiddleware())
+
+		r.Post("/", request.AddAddressToTrack)
+		r.Get("/", request.GetAddresses)
+		r.Get("/{address}/balance", request.GetBalance)
+		r.Get("/{address}/utxos", request.GetUtxos)
+		r.Get("/{address}/txs", request.GetTXs)
+	})
 
 	return router
 }

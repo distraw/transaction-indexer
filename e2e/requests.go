@@ -13,7 +13,7 @@ import (
 
 type healthcheckResponse struct {
 	Alive     bool `json:"alive"`
-	Launched  bool `json:"launched"`
+	Started   bool `json:"started"`
 	CatchedUp bool `json:"catchedUp"`
 }
 
@@ -22,7 +22,7 @@ func healthcheck(t *testing.T) healthcheckResponse {
 	if err != nil {
 		return healthcheckResponse{
 			Alive:     false,
-			Launched:  false,
+			Started:   false,
 			CatchedUp: false,
 		}
 	}
@@ -89,9 +89,9 @@ func login(t *testing.T, username string, password string) (jwtToken string) {
 	return token.Value
 }
 
-func launch(t *testing.T) {
-	req, err := http.NewRequest(http.MethodPost, indexerEndpoint+"launch", nil)
-	require.NoError(t, err, "failed to launch indexer")
+func start(t *testing.T) {
+	req, err := http.NewRequest(http.MethodPost, indexerEndpoint+"start", nil)
+	require.NoError(t, err, "failed to start indexer")
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)

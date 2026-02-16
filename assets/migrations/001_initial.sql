@@ -1,7 +1,5 @@
 -- +migrate Up
 
-SET log_min_messages TO FATAL;
-
 CREATE USER healthchecker;
 
 CREATE TABLE users (
@@ -44,8 +42,6 @@ CREATE TABLE utxos (
 );
 
 -- +migrate Down
-
-SET log_min_messages TO DEBUG5;
 
 DROP USER healthchecker;
 DROP TABLE users_addresses;

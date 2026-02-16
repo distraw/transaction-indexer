@@ -25,7 +25,7 @@ func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 
 		err = utxos.MarkSpent(in.Txid, int(in.Vout), blockHeight)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete spent utxo from db")
+			return errors.Wrap(err, "failed to mark utxos spent in db")
 		}
 	}
 

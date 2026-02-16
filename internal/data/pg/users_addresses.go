@@ -47,7 +47,7 @@ func (u *usersAddressesQ) Insert(userAddress data.UserAddress) error {
 		if strings.Contains(err.Error(), data.DuplicateErrValue) {
 			return data.ErrAlreadyExists
 		}
-		return err
+		return errors.Wrap(err, "failed to exec raw db query")
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (u *usersAddressesQ) Exists(userAddress data.UserAddress) (bool, error) {
 		QueryRow(query, userAddress.UserID, userAddress.AddressID).
 		Scan(&ok)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to scan results of raw db query")
 	}
 
 	return ok, nil
@@ -86,7 +86,7 @@ func (u *usersAddressesQ) GetAddresses(userID int) ([]int, error) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to select from db")
 	}
 
 	return addressID, nil

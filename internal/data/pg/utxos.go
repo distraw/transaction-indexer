@@ -47,7 +47,7 @@ func (u *utxosQ) Insert(utxo data.Utxo) error {
 			err = data.ErrAlreadyExists
 		}
 
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -60,7 +60,7 @@ func (u *utxosQ) Delete(id int) error {
 
 	err := u.db.Exec(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -76,7 +76,7 @@ func (u *utxosQ) MarkSpent(txid string, vout int, blockHeight int32) error {
 
 	err := u.db.Exec(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -91,7 +91,7 @@ func (u *utxosQ) MarkUnspentAboveHeight(blockHeight int32) error {
 
 	err := u.db.Exec(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to execute db query")
 	}
 
 	return nil
@@ -109,7 +109,7 @@ func (u *utxosQ) Get(txid string, vout int) (*data.Utxo, error) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
 	return &utxo, nil
@@ -132,7 +132,7 @@ func (u *utxosQ) Exists(txid string, vout uint32) (bool, error) {
 			return false, data.ErrAlreadyExists
 		}
 
-		return false, err
+		return false, errors.Wrap(err, "failed to scan results of raw db query")
 	}
 
 	return exists, nil
