@@ -22,21 +22,22 @@ type blocksQ struct {
 	db *pgdb.DB
 }
 
-func (b *blocksQ) Insert(block data.Block) error {
+func (b *blocksQ) Insert(block data.Block) (*int, error) {
 	query := squirrel.Insert(blocksTable).SetMap(map[string]interface{}{
 		blocksHash:   block.Hash,
 		blocksHeight: block.Height,
-	})
+	}).Suffix("RETURNING id")
 
-	err := b.db.Exec(query)
+	var id int
+	err := b.db.Get(&id, query)
 	if err != nil {
 		if strings.Contains(err.Error(), data.DuplicateErrValue) {
-			return data.ErrAlreadyExists
+			return nil, data.ErrAlreadyExists
 		}
-		return errors.Wrap(err, "failed to execute db query")
+		return nil, errors.Wrap(err, "failed to execute db query")
 	}
 
-	return nil
+	return &id, nil
 }
 
 func (b *blocksQ) Exists(hash string) (bool, error) {

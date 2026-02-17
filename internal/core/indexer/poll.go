@@ -17,6 +17,11 @@ func (i *indexer) poll() error {
 		return nil
 	}
 
+	i.log.
+		WithField("prev_hash", i.currentHash).
+		WithField("new_hash", newHash).
+		Info("new block detected")
+
 	newBlockHeader, err := i.rpc.GetBlockHeaderVerbose(newHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to get verbose block header")
@@ -26,12 +31,11 @@ func (i *indexer) poll() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to reorganize")
 		}
-	}
 
-	i.log.
-		WithField("prev_hash", i.currentHash).
-		WithField("new_hash", newHash).
-		Info("new best block detected")
+		// since everything including the newest block was processed,
+		// no sense to process the newest block again
+		return nil
+	}
 
 	err = i.processBlock(newHash)
 	if errors.Is(err, data.ErrAlreadyExists) {

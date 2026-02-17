@@ -1,6 +1,8 @@
 package indexer
 
 import (
+	"time"
+
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/distraw/transaction-indexer/internal/data"
@@ -32,7 +34,7 @@ func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 	return nil
 }
 
-func (i *indexer) processOutputs(vout []btcjson.Vout, block *btcjson.GetBlockVerboseTxResult, txid string) error {
+func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransactionID int) error {
 	for _, out := range vout {
 		scriptPubKey := out.ScriptPubKey.Hex
 
@@ -44,36 +46,38 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, block *btcjson.GetBlockVer
 			return errors.Wrap(err, "failed to fetch address from storage")
 		}
 
-		dbBlock, err := i.storage.Blocks().Get(block.Hash)
-		if err == data.ErrNotFound {
-			return errors.Wrap(err, "processed block does not exist in storage")
-		}
-		if err != nil {
-			return errors.Wrap(err, "failed to get block from storage")
-		}
-
 		i.storage.Utxos().Insert(data.Utxo{
 			Txid: txid,
 			Vout: int(out.N),
 
 			Value: out.Value,
 
-			BlockID:   dbBlock.ID,
-			AddressID: dbAddress.ID,
+			TransactionID: dbTransactionID,
+			AddressID:     dbAddress.ID,
 		})
 	}
 
 	return nil
 }
 
-func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult) error {
+func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, dbBlockID int) error {
 	for _, tx := range block.Tx {
-		err := i.processInputs(tx.Vin, int32(block.Height))
+		dbTransactionID, err := i.storage.Transactions().Insert(data.Transaction{
+			Txid:      tx.Txid,
+			BlockID:   dbBlockID,
+			Locktime:  tx.LockTime,
+			Timestamp: time.Unix(tx.Time, 0).UTC(),
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to insert new transaction into db")
+		}
+
+		err = i.processInputs(tx.Vin, int32(block.Height))
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction inputs")
 		}
 
-		err = i.processOutputs(tx.Vout, block, tx.Txid)
+		err = i.processOutputs(tx.Vout, tx.Txid, *dbTransactionID)
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction outputs")
 		}
@@ -98,7 +102,7 @@ func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
 		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
 	}
 
-	err = i.storage.Blocks().Insert(data.Block{
+	dbBlockID, err := i.storage.Blocks().Insert(data.Block{
 		Hash:   block.Hash,
 		Height: int32(block.Height),
 	})
@@ -109,7 +113,7 @@ func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
 		return errors.Wrap(err, "failed to insert new block into storage")
 	}
 
-	err = i.processTransactions(block)
+	err = i.processTransactions(block, *dbBlockID)
 	if err != nil {
 		return errors.Wrap(err, "failed to process transactions")
 	}

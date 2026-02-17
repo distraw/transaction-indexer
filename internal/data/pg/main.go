@@ -2,7 +2,6 @@ package pg
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
@@ -17,6 +16,7 @@ type storage struct {
 	users          data.UsersQ
 	usersAddresses data.UsersAddressesQ
 	addresses      data.AddressesQ
+	transactions   data.TransactionsQ
 	utxos          data.UtxosQ
 
 	blocks data.BlocksQ
@@ -38,6 +38,10 @@ func (s *storage) Blocks() data.BlocksQ {
 	return s.blocks
 }
 
+func (s *storage) Transactions() data.TransactionsQ {
+	return s.transactions
+}
+
 func (s *storage) Utxos() data.UtxosQ {
 	return s.utxos
 }
@@ -55,8 +59,8 @@ func (s *storage) AddAddress(userID int, address data.Address) error {
 
 	err = s.usersAddresses.Insert(userAddress)
 	if err != nil {
-		if strings.Contains(err.Error(), data.DuplicateErrValue) {
-			return data.ErrAlreadyExists
+		if errors.Is(err, data.ErrAlreadyExists) {
+			return errors.Wrap(err, "proposed row already exists")
 		}
 
 		return errors.Wrap(err, "failed to insert new relation user_address into db")
@@ -132,8 +136,25 @@ func (s *storage) GetBalance(addr string) (*float64, error) {
 	return &balance, nil
 }
 
+func (s *storage) GetTxs(addr string) ([]data.Transaction, error) {
+	query := `SELECT t.txid, t.locktime, t.timestamp
+			FROM addresses a
+			JOIN utxos u ON a.id = u.address_id
+			JOIN transactions t ON u.transaction_id = t.id
+			WHERE a.addr = $1;
+			`
+
+	var txs []data.Transaction
+	err := s.db.SelectRaw(&txs, query, addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute raw sql query")
+	}
+
+	return txs, nil
+}
+
 func (s *storage) GetUtxos(addr string) ([]data.Utxo, error) {
-	query := squirrel.Select(utxosTxid, utxosVout, utxosValue, utxosSpentInBlockHeight, utxosAddressID, utxosBlockID).
+	query := squirrel.Select(utxosTxid, utxosVout, utxosValue, utxosSpentInBlockHeight, utxosAddressID, utxosTransactionID).
 		From(utxosTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.id = %s.%s",
@@ -164,6 +185,7 @@ func NewStorage(db *pgdb.DB) data.Storage {
 
 		users:          NewUsersQ(db),
 		usersAddresses: NewUsersAddressesQ(db),
+		transactions:   NewTransactionsQ(db),
 		addresses:      NewAddressesQ(db),
 		utxos:          NewUtxosQ(db),
 

@@ -19,8 +19,8 @@ const (
 
 	utxosSpentInBlockHeight = "spent_in_block_height"
 
-	utxosBlockID   = "block_id"
-	utxosAddressID = "address_id"
+	utxosTransactionID = "transaction_id"
+	utxosAddressID     = "address_id"
 )
 
 type utxosQ struct {
@@ -37,7 +37,7 @@ func (u *utxosQ) Insert(utxo data.Utxo) error {
 		utxosVout:               utxo.Vout,
 		utxosValue:              utxo.Value,
 		utxosSpentInBlockHeight: nil,
-		utxosBlockID:            utxo.BlockID,
+		utxosTransactionID:      utxo.TransactionID,
 		utxosAddressID:          utxo.AddressID,
 	})
 
@@ -97,7 +97,7 @@ func (u *utxosQ) MarkUnspentAboveHeight(blockHeight int32) error {
 	return nil
 }
 
-func (u *utxosQ) Get(txid string, vout int) (*data.Utxo, error) {
+func (u *utxosQ) Get(txid string, vout uint32) (*data.Utxo, error) {
 	query := squirrel.Select("*").From(utxosTable).Where(squirrel.Eq{
 		utxosTxid: txid,
 		utxosVout: vout,

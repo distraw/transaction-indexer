@@ -26,6 +26,14 @@ CREATE TABLE blocks (
     height BIGINT NOT NULL UNIQUE
 );
 
+CREATE TABLE transactions (
+    id SERIAL PRIMARY KEY,
+    txid TEXT UNIQUE NOT NULL,
+    block_id INT REFERENCES blocks(id) ON DELETE CASCADE,
+    locktime BIGINT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE utxos (
     id SERIAL PRIMARY KEY,
 
@@ -38,7 +46,7 @@ CREATE TABLE utxos (
     spent_in_block_height INT,
 
     address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
-    block_id INT REFERENCES blocks(id) ON DELETE CASCADE
+    transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
 );
 
 -- +migrate Down
@@ -46,6 +54,7 @@ CREATE TABLE utxos (
 DROP USER healthchecker;
 DROP TABLE users_addresses;
 DROP TABLE users;
+DROP TABLE transactions;
 DROP TABLE utxos;
 DROP TABLE addresses;
 DROP TABLE blocks;

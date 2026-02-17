@@ -1,7 +1,7 @@
 package data
 
 type BlocksQ interface {
-	Insert(block Block) error
+	Insert(block Block) (id *int, err error)
 	Exists(hash string) (bool, error)
 	DeleteUpon(height int32) error
 	Get(hash string) (*Block, error)
