@@ -13,7 +13,7 @@ func run(t *testing.T, name string, args ...string) string {
 	t.Helper()
 
 	cmd := exec.Command(name, args...)
-	cmd.Dir = "../"
+	cmd.Dir = "../../"
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 	if len(out) != 0 {

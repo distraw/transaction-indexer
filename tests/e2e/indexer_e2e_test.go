@@ -1,3 +1,11 @@
+//	End-to-end test.
+//	Checks if indexer synchronizes, handles reorgs and returns correct
+// 	information regarding tracked addresses
+//
+//	Because of the nature of golang testing package, logs are not shown
+//	during testing. Tests run at average for 120 seconds and during that
+//	it may seem that test froze
+
 package e2e
 
 import (
