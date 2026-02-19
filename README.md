@@ -23,6 +23,12 @@ POST http://localhost:8080/start – start the indexer. It would catch-up from t
 git clone -b dev https://github.com/distraw/transaction-indexer.git
 cd transaction-indexer
 ```
+2) Set the JWT_SECRET variable (used to issue JWTs, should be 32 random characters long):
+```
+export JWT_SECRET=<your_32bit_token>
+// example
+// export JWT_SECRET=1234567890qwertyuiopasdfghjklzxc
+```
 2) Run the tests:
 ```
 go clean -testcache
