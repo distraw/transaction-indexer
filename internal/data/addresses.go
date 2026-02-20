@@ -4,6 +4,7 @@ type AddressesQ interface {
 	New() AddressesQ
 
 	Insert(address Address) (id *int, err error)
+	GetAllScriptPubKeys() ([]string, error)
 	GetByScriptPubKey(scriptPubKey string) (*Address, error)
 	Exists(addr string) (ok bool, err error)
 	ExistsByScriptPubKey(spk string) (ok bool, err error)

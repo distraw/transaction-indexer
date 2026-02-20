@@ -97,20 +97,30 @@ func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
 		return errors.Wrap(err, "invalid block header")
 	}
 
-	block, err := i.rpc.GetBlockVerboseTx(blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
-	}
-
 	dbBlockID, err := i.storage.Blocks().Insert(data.Block{
-		Hash:   block.Hash,
-		Height: int32(block.Height),
+		Hash:   header.Hash,
+		Height: header.Height,
 	})
 	if errors.Is(err, data.ErrAlreadyExists) {
 		return errors.Wrap(err, "block already exists in db")
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to insert new block into storage")
+	}
+
+	containsTrackedAddresses, err := i.filterBlock(blockHash)
+	if err != nil {
+		return errors.Wrap(err, "failed to check block filter")
+	}
+	// block filter shows no presence of tracked addresses in txs
+	// => further block processing is redundant
+	if !containsTrackedAddresses {
+		return nil
+	}
+
+	block, err := i.rpc.GetBlockVerboseTx(blockHash)
+	if err != nil {
+		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
 	}
 
 	err = i.processTransactions(block, *dbBlockID)

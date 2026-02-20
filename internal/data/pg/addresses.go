@@ -46,6 +46,21 @@ func (a *addressesQ) Insert(address data.Address) (*int, error) {
 	return &id, nil
 }
 
+func (a *addressesQ) GetAllScriptPubKeys() ([]string, error) {
+	query := squirrel.Select(addressesScriptPubKey).From(addressesTable)
+
+	var addresses []string
+	err := a.db.Select(&addresses, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute db query")
+	}
+	if len(addresses) == 0 {
+		return nil, data.ErrNotFound
+	}
+
+	return addresses, nil
+}
+
 func (a *addressesQ) GetByScriptPubKey(scriptPubKey string) (*data.Address, error) {
 	query := a.selector.Where(squirrel.Eq{
 		addressesScriptPubKey: scriptPubKey,
