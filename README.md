@@ -32,7 +32,7 @@ export JWT_SECRET=<your_32bit_token>
 2) Run the tests:
 ```
 go clean -testcache
-go test ./e2e
+go test ./tests/...
 ```
 Change the `config.local.yaml` to listen on desired node (leave as is if regtest is ok)
 ```
