@@ -53,7 +53,7 @@ func AddAddressToTrack(w http.ResponseWriter, r *http.Request) {
 			ScriptPubKey: scriptPubKey,
 		},
 	)
-	if err == data.ErrAlreadyExists {
+	if errors.Is(err, data.ErrAlreadyExists) {
 		http.Error(w, "address already exists", http.StatusConflict)
 		return
 	}
