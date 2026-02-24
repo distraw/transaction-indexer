@@ -2,7 +2,7 @@ package data
 
 type OutsQ interface {
 	New() OutsQ
-	Insert(utxo Out) error
+	Insert(out Out) error
 	Delete(id int) error
 	MarkSpent(txid string, vout int, blockHeight int32) error
 	MarkUnspentAboveHeight(blockHeight int32) error
@@ -16,9 +16,9 @@ type Out struct {
 	Txid string `db:"txid" json:"txid"`
 	Vout int    `db:"vout" json:"vout"`
 
-	Value              float64 `db:"value" json:"value"`
-	SpentInBlockHeight *int32  `db:"spent_in_block_height" json:"spent_in_block_height"`
+	Value              float64 `db:"value" json:"BTCs"`
+	SpentInBlockHeight *int32  `db:"spent_in_block_height" json:"spent_in_block"`
 
-	Address       string `db:"address" json:"-"`
+	Address       string `db:"address" json:"send_to"`
 	TransactionID int    `db:"transaction_id" json:"-"`
 }

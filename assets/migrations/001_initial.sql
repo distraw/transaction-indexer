@@ -49,6 +49,16 @@ CREATE TABLE outs (
     transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
 );
 
+CREATE TABLE ins (
+    id SERIAL PRIMARY KEY,
+
+    from_address TEXT NOT NULL,
+    value DECIMAL NOT NULL,
+
+    transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE,
+    vin INT NOT NULL
+);
+
 -- +migrate Down
 
 DROP USER healthchecker;
@@ -57,6 +67,5 @@ DROP TABLE users;
 DROP TABLE transactions;
 DROP TABLE ins;
 DROP TABLE outs;
-DROP TABLE utxos;
 DROP TABLE addresses;
 DROP TABLE blocks;

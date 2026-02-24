@@ -5,6 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/pkg/errors"
 )
@@ -13,8 +14,58 @@ var (
 	ErrUnusualScript = errors.New("non-usual script detected")
 )
 
-func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
-	for _, in := range vin {
+func (i *indexer) getAddressFromScriptPubKey(scriptPubKeyHex string) (string, error) {
+	address, err := bitcoin.ToAddress(scriptPubKeyHex, &i.netParams)
+	if errors.Is(err, bitcoin.ErrNoAddress) {
+		return "not_found", nil
+	}
+	if errors.Is(err, bitcoin.ErrMultipleAddresses) {
+		return "multiple", nil
+	}
+	if err != nil {
+		return "", errors.Wrap(err, "failed to convert scriptPubKey (hex format) to bitcoin address")
+	}
+
+	return address, nil
+}
+
+func (i *indexer) getInputInfo(in btcjson.Vin) (sender string, value float64, e error) {
+	if in.IsCoinBase() {
+		return "coinbase", 0, nil
+	}
+
+	outTxHash, err := chainhash.NewHashFromStr(in.Txid)
+	if err != nil {
+		return "", 0, errors.Wrap(err, "failed to get hash from string in.Txid ")
+	}
+
+	outTx, err := i.rpc.GetRawTransactionVerbose(outTxHash)
+	if err != nil {
+		return "", 0, errors.Wrapf(err, "failed to get transaction %s", in.Txid)
+	}
+
+	fromAddress, err := i.getAddressFromScriptPubKey(outTx.Vout[in.Vout].ScriptPubKey.Hex)
+	if err != nil {
+		return "", 0, errors.Wrap(err, "failed to decode scriptPubKey from hex to bitcoin address")
+	}
+
+	return fromAddress, outTx.Vout[in.Vout].Value, nil
+}
+
+func (i *indexer) processInputs(vin []btcjson.Vin, dbTransactionID int, blockHeight int32) error {
+	for j, in := range vin {
+		senderAddress, value, err := i.getInputInfo(in)
+		if err != nil {
+			return errors.Wrap(err, "failed to get sender address for input")
+		}
+
+		i.storage.Ins().Insert(data.In{
+			FromAddress:   senderAddress,
+			Value:         value,
+			TransactionID: dbTransactionID,
+			Vin:           j,
+		})
+
 		exists, err := i.storage.Outs().Exists(in.Txid, in.Vout)
 		if err != nil {
 			return errors.Wrap(err, "failed to check utxo existence in db")
@@ -25,7 +76,7 @@ func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 
 		err = i.storage.Outs().MarkSpent(in.Txid, int(in.Vout), blockHeight)
 		if err != nil {
-			return errors.Wrap(err, "failed to mark utxos spent in db")
+			return errors.Wrap(err, "failed to mark outputs spent in db")
 		}
 	}
 
@@ -34,14 +85,9 @@ func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 
 func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransactionID int) error {
 	for _, out := range vout {
-		scriptPubKey := out.ScriptPubKey.Hex
-
-		dbAddress, err := i.storage.Addresses().GetByScriptPubKey(scriptPubKey)
-		if errors.Is(err, data.ErrNotFound) {
-			continue
-		}
+		receiverAddress, err := i.getAddressFromScriptPubKey(out.ScriptPubKey.Hex)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch address from storage")
+			return errors.Wrap(err, "failed to get bitcoin address from its scriptPubKey")
 		}
 
 		i.storage.Outs().Insert(data.Out{
@@ -51,7 +97,7 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransaction
 			Value: out.Value,
 
 			TransactionID: dbTransactionID,
-			Address:       dbAddress.Addr,
+			Address:       receiverAddress,
 		})
 	}
 
@@ -64,12 +110,12 @@ func (i *indexer) checkTxForTrackedAddrs(tx btcjson.TxRawResult) (bool, error) {
 	for _, out := range tx.Vout {
 		scriptPubKey := out.ScriptPubKey.Hex
 
-		_, err := i.storage.Addresses().GetByScriptPubKey(scriptPubKey)
-		if errors.Is(err, data.ErrNotFound) {
-			continue
-		}
+		exists, err := i.storage.Addresses().ExistsByScriptPubKey(scriptPubKey)
 		if err != nil {
 			return false, errors.Wrap(err, "failed to fetch address from storage")
+		}
+		if !exists {
+			continue
 		}
 
 		return true, nil
@@ -110,7 +156,7 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, db
 			continue
 		}
 
-		err = i.processInputs(tx.Vin, int32(block.Height))
+		err = i.processInputs(tx.Vin, *dbTransactionID, int32(block.Height))
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction inputs")
 		}

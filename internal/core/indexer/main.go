@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/config"
@@ -41,6 +42,7 @@ type indexer struct {
 
 	pollFrequency      time.Duration
 	initialBlockHeight int64
+	netParams          chaincfg.Params
 
 	currentHash *chainhash.Hash
 }
@@ -116,6 +118,7 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 
 		pollFrequency:      info.GetPollFrequency(),
 		initialBlockHeight: info.GetInitialBlockHeight(),
+		netParams:          info.GetNet(),
 
 		scheduler: tasks.New(),
 

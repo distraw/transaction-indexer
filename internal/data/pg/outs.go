@@ -27,11 +27,11 @@ type outsQ struct {
 	db *pgdb.DB
 }
 
-func (u *outsQ) New() data.OutsQ {
-	return NewOutsQ(u.db.Clone())
+func (o *outsQ) New() data.OutsQ {
+	return NewOutsQ(o.db.Clone())
 }
 
-func (u *outsQ) Insert(out data.Out) error {
+func (o *outsQ) Insert(out data.Out) error {
 	query := squirrel.Insert(outsTable).SetMap(map[string]interface{}{
 		outsTxid:               out.Txid,
 		outsVout:               out.Vout,
@@ -41,7 +41,7 @@ func (u *outsQ) Insert(out data.Out) error {
 		outsAddress:            out.Address,
 	})
 
-	err := u.db.Exec(query)
+	err := o.db.Exec(query)
 	if err != nil {
 		if strings.Contains(err.Error(), data.DuplicateErrValue) {
 			err = data.ErrAlreadyExists
@@ -53,12 +53,12 @@ func (u *outsQ) Insert(out data.Out) error {
 	return nil
 }
 
-func (u *outsQ) Delete(id int) error {
+func (o *outsQ) Delete(id int) error {
 	query := squirrel.Delete(outsTable).Where(squirrel.Eq{
 		"id": id,
 	})
 
-	err := u.db.Exec(query)
+	err := o.db.Exec(query)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute db query")
 	}
@@ -66,7 +66,7 @@ func (u *outsQ) Delete(id int) error {
 	return nil
 }
 
-func (u *outsQ) MarkSpent(txid string, vout int, blockHeight int32) error {
+func (o *outsQ) MarkSpent(txid string, vout int, blockHeight int32) error {
 	query := squirrel.Update(outsTable).SetMap(map[string]interface{}{
 		outsSpentInBlockHeight: blockHeight,
 	}).Where(squirrel.Eq{
@@ -74,7 +74,7 @@ func (u *outsQ) MarkSpent(txid string, vout int, blockHeight int32) error {
 		outsVout: vout,
 	})
 
-	err := u.db.Exec(query)
+	err := o.db.Exec(query)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute db query")
 	}
@@ -82,14 +82,14 @@ func (u *outsQ) MarkSpent(txid string, vout int, blockHeight int32) error {
 	return nil
 }
 
-func (u *outsQ) MarkUnspentAboveHeight(blockHeight int32) error {
+func (o *outsQ) MarkUnspentAboveHeight(blockHeight int32) error {
 	query := squirrel.Update(outsTable).SetMap(map[string]interface{}{
 		outsSpentInBlockHeight: nil,
 	}).Where(squirrel.Gt{
 		outsSpentInBlockHeight: blockHeight,
 	})
 
-	err := u.db.Exec(query)
+	err := o.db.Exec(query)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute db query")
 	}
@@ -97,14 +97,14 @@ func (u *outsQ) MarkUnspentAboveHeight(blockHeight int32) error {
 	return nil
 }
 
-func (u *outsQ) Get(txid string, vout uint32) (*data.Out, error) {
+func (o *outsQ) Get(txid string, vout uint32) (*data.Out, error) {
 	query := squirrel.Select("*").From(outsTable).Where(squirrel.Eq{
 		outsTxid: txid,
 		outsVout: vout,
 	})
 
 	var out data.Out
-	err := u.db.Get(&out, query)
+	err := o.db.Get(&out, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, data.ErrNotFound
 	}
@@ -115,7 +115,7 @@ func (u *outsQ) Get(txid string, vout uint32) (*data.Out, error) {
 	return &out, nil
 }
 
-func (u *outsQ) Exists(txid string, vout uint32) (bool, error) {
+func (o *outsQ) Exists(txid string, vout uint32) (bool, error) {
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s=$1 AND %s=$2)",
 		outsTable,
@@ -124,7 +124,7 @@ func (u *outsQ) Exists(txid string, vout uint32) (bool, error) {
 	)
 
 	var exists bool
-	err := u.db.RawDB().
+	err := o.db.RawDB().
 		QueryRow(query, txid, vout).
 		Scan(&exists)
 	if err != nil {

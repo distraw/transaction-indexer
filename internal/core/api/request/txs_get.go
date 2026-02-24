@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
+	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/go-chi/chi/v5"
 	"github.com/josemiguelmelo/btcaddressvalidator"
 )
@@ -35,7 +36,34 @@ func GetTXs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusInternalServerError)
 	}
 
+	var responseBody = make([]struct {
+		Tx      data.Transaction `json:"transaction"`
+		Inputs  []data.In        `json:"inputs"`
+		Outputs []data.Out       `json:"outputs"`
+	}, len(txs))
+
+	for i, tx := range txs {
+		responseBody[i].Tx = tx
+
+		inputs, err := ctx.Storage(r.Context()).GetInputsInTransaction(tx.Txid)
+		if err != nil {
+			ctx.Logger(r.Context()).WithError(err).Errorf("failed to get all inputs in transaction %s", tx.Txid)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
+		outputs, err := ctx.Storage(r.Context()).GetOutputsInTransaction(tx.Txid)
+		if err != nil {
+			ctx.Logger(r.Context()).WithError(err).Errorf("failed to get all outputs in transaction %s", tx.Txid)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
+		responseBody[i].Inputs = inputs
+		responseBody[i].Outputs = outputs
+	}
+
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(txs)
+	json.NewEncoder(w).Encode(responseBody)
 }

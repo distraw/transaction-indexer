@@ -29,9 +29,9 @@ func GetUtxos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outs, err := ctx.Storage(r.Context()).GetOuts(address)
+	outs, err := ctx.Storage(r.Context()).GetUtxos(address)
 	if err != nil {
-		ctx.Logger(r.Context()).WithError(err).Errorf("failed to get utxos from db: %s", err.Error())
+		ctx.Logger(r.Context()).WithError(err).Errorf("failed to get unspent outs from db: %s", err.Error())
 		http.Error(w, "", http.StatusInternalServerError)
 	}
 

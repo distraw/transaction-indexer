@@ -8,6 +8,8 @@ listener:
 indexer:
   initial_block_height: 1
   poll_frequency_seconds: 10
+  ## must be either "mainnet", "testnet3" (version 3) , "testnet4" (version 4)  or "regtest3"
+  net: regtest
 
 rpc:
   #host: bitcoin-testnet-rpc.publicnode.com:443
