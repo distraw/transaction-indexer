@@ -6,7 +6,7 @@ type Storage interface {
 	Addresses() AddressesQ
 	Transactions() TransactionsQ
 	Blocks() BlocksQ
-	Utxos() UtxosQ
+	Outs() OutsQ
 
 	AddAddress(userID int, address Address) (err error)
 	GetAddresses(userID int) ([]Address, error)
@@ -14,7 +14,7 @@ type Storage interface {
 
 	GetBalance(addr string) (*float64, error)
 	GetTxs(addr string) ([]Transaction, error)
-	GetUtxos(addr string) ([]Utxo, error)
+	GetOuts(addr string) ([]Out, error)
 
 	New() Storage
 }

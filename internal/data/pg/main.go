@@ -17,7 +17,7 @@ type storage struct {
 	usersAddresses data.UsersAddressesQ
 	addresses      data.AddressesQ
 	transactions   data.TransactionsQ
-	utxos          data.UtxosQ
+	outs           data.OutsQ
 
 	blocks data.BlocksQ
 }
@@ -42,8 +42,8 @@ func (s *storage) Transactions() data.TransactionsQ {
 	return s.transactions
 }
 
-func (s *storage) Utxos() data.UtxosQ {
-	return s.utxos
+func (s *storage) Outs() data.OutsQ {
+	return s.outs
 }
 
 func (s *storage) AddAddress(userID int, address data.Address) error {
@@ -121,10 +121,10 @@ func (s *storage) GetBalance(addr string) (*float64, error) {
 	FROM %s
 	JOIN %s ON %s.%s = %s.%s
 	WHERE %s.%s = $1 AND %s IS NULL`,
-		utxosTable, utxosValue,
-		utxosTable,
-		addressesTable, addressesTable, "id", utxosTable, utxosAddressID,
-		addressesTable, addressesAddr, utxosSpentInBlockHeight,
+		outsTable, outsValue,
+		outsTable,
+		addressesTable, addressesTable, addressesAddr, outsTable, outsAddress,
+		addressesTable, addressesAddr, outsSpentInBlockHeight,
 	)
 
 	var balance float64
@@ -153,26 +153,26 @@ func (s *storage) GetTxs(addr string) ([]data.Transaction, error) {
 	return txs, nil
 }
 
-func (s *storage) GetUtxos(addr string) ([]data.Utxo, error) {
-	query := squirrel.Select(utxosTxid, utxosVout, utxosValue, utxosSpentInBlockHeight, utxosAddressID, utxosTransactionID).
-		From(utxosTable).
+func (s *storage) GetOuts(addr string) ([]data.Out, error) {
+	query := squirrel.Select(outsTxid, outsVout, outsValue, outsSpentInBlockHeight, outsAddress, outsTransactionID).
+		From(outsTable).
 		JoinClause(
-			fmt.Sprintf("JOIN %s ON %s.id = %s.%s",
+			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
 				addressesTable,
-				addressesTable, utxosTable, utxosAddressID,
+				addressesTable, addressesAddr, outsTable, outsAddress,
 			),
 		).
 		Where(
 			squirrel.Eq{fmt.Sprintf("%s.%s", addressesTable, addressesAddr): addr},
 		)
 
-	var utxos []data.Utxo
-	err := s.db.Select(&utxos, query)
+	var outs []data.Out
+	err := s.db.Select(&outs, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to select from utxos table")
 	}
 
-	return utxos, nil
+	return outs, nil
 }
 
 func (s *storage) New() data.Storage {
@@ -187,7 +187,7 @@ func NewStorage(db *pgdb.DB) data.Storage {
 		usersAddresses: NewUsersAddressesQ(db),
 		transactions:   NewTransactionsQ(db),
 		addresses:      NewAddressesQ(db),
-		utxos:          NewUtxosQ(db),
+		outs:           NewOutsQ(db),
 
 		blocks: NewBlocksQ(db),
 	}

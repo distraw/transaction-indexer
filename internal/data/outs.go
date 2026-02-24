@@ -1,16 +1,16 @@
 package data
 
-type UtxosQ interface {
-	New() UtxosQ
-	Insert(utxo Utxo) error
+type OutsQ interface {
+	New() OutsQ
+	Insert(utxo Out) error
 	Delete(id int) error
 	MarkSpent(txid string, vout int, blockHeight int32) error
 	MarkUnspentAboveHeight(blockHeight int32) error
-	Get(txid string, vout uint32) (*Utxo, error)
+	Get(txid string, vout uint32) (*Out, error)
 	Exists(txid string, vout uint32) (bool, error)
 }
 
-type Utxo struct {
+type Out struct {
 	ID int `db:"id" json:"-"`
 
 	Txid string `db:"txid" json:"txid"`
@@ -19,6 +19,6 @@ type Utxo struct {
 	Value              float64 `db:"value" json:"value"`
 	SpentInBlockHeight *int32  `db:"spent_in_block_height" json:"spent_in_block_height"`
 
-	AddressID     int `db:"address_id" json:"-"`
-	TransactionID int `db:"transaction_id" json:"-"`
+	Address       string `db:"address" json:"-"`
+	TransactionID int    `db:"transaction_id" json:"-"`
 }

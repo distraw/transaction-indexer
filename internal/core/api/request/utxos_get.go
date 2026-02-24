@@ -29,7 +29,7 @@ func GetUtxos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utxos, err := ctx.Storage(r.Context()).GetUtxos(address)
+	outs, err := ctx.Storage(r.Context()).GetOuts(address)
 	if err != nil {
 		ctx.Logger(r.Context()).WithError(err).Errorf("failed to get utxos from db: %s", err.Error())
 		http.Error(w, "", http.StatusInternalServerError)
@@ -37,5 +37,5 @@ func GetUtxos(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(utxos)
+	json.NewEncoder(w).Encode(outs)
 }

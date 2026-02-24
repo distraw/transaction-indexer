@@ -40,7 +40,7 @@ func TestIndexer_Syncing(t *testing.T) {
 	fmt.Println("Generating genesis block...")
 	generateToAddress(t, addr, 1)
 
-	require.True(t, healthcheck(t).Alive)
+	require.True(t, healthcheck(t).Alive, "indexer is not alive")
 
 	fmt.Println("Authorizing into indexer...")
 	register(t, "user", "123")
@@ -80,7 +80,7 @@ func TestIndexer_CatchUp(t *testing.T) {
 	fmt.Println("Generating blocks...")
 	generateToAddress(t, addr, 101)
 
-	require.True(t, healthcheck(t).Alive)
+	require.True(t, healthcheck(t).Alive, "indexer is not alive")
 
 	fmt.Println("Authorizing into indexer...")
 	register(t, "user", "123")
@@ -114,7 +114,7 @@ func TestIndexer_Reorganizing(t *testing.T) {
 	fmt.Println("Generating blocks...")
 	hashes := generateToAddress(t, addr, 10)
 
-	require.True(t, healthcheck(t).Alive)
+	require.True(t, healthcheck(t).Alive, "indexer is not alive")
 
 	fmt.Println("Authorizing into indexer...")
 	register(t, "user", "123")
@@ -160,7 +160,7 @@ func TestIndexer_MultipleUsersAddresses(t *testing.T) {
 	generateToAddress(t, addr0, 3)
 	generateToAddress(t, addr1, 4)
 
-	require.True(t, healthcheck(t).Alive)
+	require.True(t, healthcheck(t).Alive, "indexer is not alive")
 
 	register(t, "user_0", "password_0")
 	register(t, "user_1", "password_1")

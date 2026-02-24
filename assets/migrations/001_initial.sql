@@ -34,7 +34,7 @@ CREATE TABLE transactions (
     timestamp TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE utxos (
+CREATE TABLE outs (
     id SERIAL PRIMARY KEY,
 
     txid TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE utxos (
 
     spent_in_block_height INT,
 
-    address_id INT REFERENCES addresses(id) ON DELETE CASCADE,
+    address TEXT NOT NULL,
     transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
 );
 
@@ -55,6 +55,8 @@ DROP USER healthchecker;
 DROP TABLE users_addresses;
 DROP TABLE users;
 DROP TABLE transactions;
+DROP TABLE ins;
+DROP TABLE outs;
 DROP TABLE utxos;
 DROP TABLE addresses;
 DROP TABLE blocks;

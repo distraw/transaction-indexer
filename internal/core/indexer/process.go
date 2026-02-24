@@ -14,10 +14,8 @@ var (
 )
 
 func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
-	utxos := i.storage.Utxos()
-
 	for _, in := range vin {
-		exists, err := utxos.Exists(in.Txid, in.Vout)
+		exists, err := i.storage.Outs().Exists(in.Txid, in.Vout)
 		if err != nil {
 			return errors.Wrap(err, "failed to check utxo existence in db")
 		}
@@ -25,7 +23,7 @@ func (i *indexer) processInputs(vin []btcjson.Vin, blockHeight int32) error {
 			continue
 		}
 
-		err = utxos.MarkSpent(in.Txid, int(in.Vout), blockHeight)
+		err = i.storage.Outs().MarkSpent(in.Txid, int(in.Vout), blockHeight)
 		if err != nil {
 			return errors.Wrap(err, "failed to mark utxos spent in db")
 		}
@@ -46,18 +44,50 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransaction
 			return errors.Wrap(err, "failed to fetch address from storage")
 		}
 
-		i.storage.Utxos().Insert(data.Utxo{
+		i.storage.Outs().Insert(data.Out{
 			Txid: txid,
 			Vout: int(out.N),
 
 			Value: out.Value,
 
 			TransactionID: dbTransactionID,
-			AddressID:     dbAddress.ID,
+			Address:       dbAddress.Addr,
 		})
 	}
 
 	return nil
+}
+
+// checkTxForTrackedAddrs checks if providen transaction contains at least one
+// tracked address
+func (i *indexer) checkTxForTrackedAddrs(tx btcjson.TxRawResult) (bool, error) {
+	for _, out := range tx.Vout {
+		scriptPubKey := out.ScriptPubKey.Hex
+
+		_, err := i.storage.Addresses().GetByScriptPubKey(scriptPubKey)
+		if errors.Is(err, data.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return false, errors.Wrap(err, "failed to fetch address from storage")
+		}
+
+		return true, nil
+	}
+
+	for _, in := range tx.Vin {
+		exists, err := i.storage.Outs().Exists(in.Txid, in.Vout)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to check utxo existence in db")
+		}
+		if !exists {
+			continue
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, dbBlockID int) error {
@@ -70,6 +100,14 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, db
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to insert new transaction into db")
+		}
+
+		containsTrackedAddrs, err := i.checkTxForTrackedAddrs(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to check if tx contains tracked addresses")
+		}
+		if !containsTrackedAddrs {
+			continue
 		}
 
 		err = i.processInputs(tx.Vin, int32(block.Height))
