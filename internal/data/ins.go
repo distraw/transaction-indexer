@@ -1,11 +1,11 @@
 package data
 
-type InsQ interface {
-	New() InsQ
-	Insert(in In) error
+type InputsQ interface {
+	New() InputsQ
+	Insert(in Input) error
 }
 
-type In struct {
+type Input struct {
 	ID int `db:"id" json:"-"`
 
 	FromAddress string  `db:"from_address" json:"received_from"`

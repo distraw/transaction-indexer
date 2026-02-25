@@ -34,7 +34,7 @@ CREATE TABLE transactions (
     timestamp TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE outs (
+CREATE TABLE outputs (
     id SERIAL PRIMARY KEY,
 
     txid TEXT NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE outs (
     transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
 );
 
-CREATE TABLE ins (
+CREATE TABLE inputs (
     id SERIAL PRIMARY KEY,
 
     from_address TEXT NOT NULL,
@@ -65,7 +65,7 @@ DROP USER healthchecker;
 DROP TABLE users_addresses;
 DROP TABLE users;
 DROP TABLE transactions;
-DROP TABLE ins;
-DROP TABLE outs;
+DROP TABLE inputs;
+DROP TABLE outputs;
 DROP TABLE addresses;
 DROP TABLE blocks;

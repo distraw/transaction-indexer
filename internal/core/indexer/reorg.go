@@ -17,7 +17,7 @@ func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) err
 		}
 
 		if exists {
-			err = i.storage.Outs().MarkUnspentAboveHeight(currentBlock.Height)
+			err = i.storage.Outputs().MarkUnspentAboveHeight(currentBlock.Height)
 			if err != nil {
 				return errors.Wrap(err, "failed to mark utxos unspent above set height")
 			}

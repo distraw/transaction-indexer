@@ -1,16 +1,16 @@
 package data
 
-type OutsQ interface {
-	New() OutsQ
-	Insert(out Out) error
+type OutputsQ interface {
+	New() OutputsQ
+	Insert(out Output) error
 	Delete(id int) error
 	MarkSpent(txid string, vout int, blockHeight int32) error
 	MarkUnspentAboveHeight(blockHeight int32) error
-	Get(txid string, vout uint32) (*Out, error)
+	Get(txid string, vout uint32) (*Output, error)
 	Exists(txid string, vout uint32) (bool, error)
 }
 
-type Out struct {
+type Output struct {
 	ID int `db:"id" json:"-"`
 
 	Txid string `db:"txid" json:"txid"`
