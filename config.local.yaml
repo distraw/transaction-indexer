@@ -10,7 +10,7 @@ indexer:
   net: regtest
 
   ## "genesis" or other block hash
-  initial_block_height: 1
+  initial_block_height: 0
 
   poll_frequency_seconds: 10
 

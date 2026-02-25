@@ -9,34 +9,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (i *indexer) getInputInfo(in btcjson.Vin) (sender string, value float64, e error) {
-	if in.IsCoinBase() {
+// getInputInfo links given input to its output using local utxo set.
+//
+// If no output were found, getInputInfo returns sender="unknown", value=-1, e=nil,
+// since it is expected behaviour when indexer starts not from genesis block
+// (output from block before indexer started may have been spent)
+func (i *indexer) getInputInfo(input btcjson.Vin) (sender string, value float64, e error) {
+	if input.IsCoinBase() {
 		return "coinbase", 0, nil
 	}
 
-	outTxHash, err := chainhash.NewHashFromStr(in.Txid)
+	output, err := i.storage.Outputs().Get(input.Txid, input.Vout)
+	if errors.Is(err, data.ErrNotFound) {
+		return "unknown", -1, nil
+	}
 	if err != nil {
-		return "", 0, errors.Wrap(err, "failed to get hash from string in.Txid ")
+		return "", 0, errors.Wrap(err, "failed to get output from local storage")
 	}
 
-	// Since this output should be considered utxo in local chain,
-	// we can simply get this utxo from db (marking it spent),
-	// and linking our input to that utxo
-	// 1. Maintain local utxo set
-
-	// DELETE
-	outTx, err := i.rpc.GetRawTransactionVerbose(outTxHash)
-	if err != nil {
-		return "", 0, errors.Wrapf(err, "failed to get transaction %s", in.Txid)
-	}
-	//
-
-	fromAddress, err := i.getAddressFromScriptPubKey(outTx.Vout[in.Vout].ScriptPubKey.Hex)
-	if err != nil {
-		return "", 0, errors.Wrap(err, "failed to decode scriptPubKey from hex to bitcoin address")
-	}
-
-	return fromAddress, outTx.Vout[in.Vout].Value, nil
+	return output.Address, output.Value, nil
 }
 
 func (i *indexer) processInputs(vin []btcjson.Vin, dbTransactionID int, blockHeight int32) error {
@@ -135,6 +126,13 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, db
 			return errors.Wrap(err, "failed to insert new transaction into db")
 		}
 
+		// Always process outputs and save them in db since they are
+		// needed to maintain local utxo set
+		err = i.processOutputs(tx.Vout, tx.Txid, *dbTransactionID)
+		if err != nil {
+			return errors.Wrap(err, "failed to process transaction outputs")
+		}
+
 		containsTrackedAddrs, err := i.checkTxForTrackedAddrs(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to check if tx contains tracked addresses")
@@ -146,11 +144,6 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, db
 		err = i.processInputs(tx.Vin, *dbTransactionID, int32(block.Height))
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction inputs")
-		}
-
-		err = i.processOutputs(tx.Vout, tx.Txid, *dbTransactionID)
-		if err != nil {
-			return errors.Wrap(err, "failed to process transaction outputs")
 		}
 	}
 
