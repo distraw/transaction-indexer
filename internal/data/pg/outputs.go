@@ -17,7 +17,7 @@ const (
 	outputsVout  = "vout"
 	outputsValue = "value"
 
-	outputsSpentInBlockHeight = "spent_in_block_height"
+	outputsSpentInTransactionID = "spent_in_transaction_id"
 
 	outputsTransactionID = "transaction_id"
 	outputsAddress       = "address"
@@ -33,12 +33,12 @@ func (o *outputsQ) New() data.OutputsQ {
 
 func (o *outputsQ) Insert(output data.Output) error {
 	query := squirrel.Insert(outputsTable).SetMap(map[string]interface{}{
-		outputsTxid:               output.Txid,
-		outputsVout:               output.Vout,
-		outputsValue:              output.Value,
-		outputsSpentInBlockHeight: nil,
-		outputsTransactionID:      output.TransactionID,
-		outputsAddress:            output.Address,
+		outputsTxid:                 output.Txid,
+		outputsVout:                 output.Vout,
+		outputsValue:                output.Value,
+		outputsSpentInTransactionID: nil,
+		outputsTransactionID:        output.TransactionID,
+		outputsAddress:              output.Address,
 	})
 
 	err := o.db.Exec(query)
@@ -66,27 +66,12 @@ func (o *outputsQ) Delete(id int) error {
 	return nil
 }
 
-func (o *outputsQ) MarkSpent(txid string, vout int, blockHeight int32) error {
+func (o *outputsQ) MarkSpent(txid string, vout uint32, spentInTransactionID int32) error {
 	query := squirrel.Update(outputsTable).SetMap(map[string]interface{}{
-		outputsSpentInBlockHeight: blockHeight,
+		outputsSpentInTransactionID: spentInTransactionID,
 	}).Where(squirrel.Eq{
 		outputsTxid: txid,
 		outputsVout: vout,
-	})
-
-	err := o.db.Exec(query)
-	if err != nil {
-		return errors.Wrap(err, "failed to execute db query")
-	}
-
-	return nil
-}
-
-func (o *outputsQ) MarkUnspentAboveHeight(blockHeight int32) error {
-	query := squirrel.Update(outputsTable).SetMap(map[string]interface{}{
-		outputsSpentInBlockHeight: nil,
-	}).Where(squirrel.Gt{
-		outputsSpentInBlockHeight: blockHeight,
 	})
 
 	err := o.db.Exec(query)
@@ -128,11 +113,7 @@ func (o *outputsQ) Exists(txid string, vout uint32) (bool, error) {
 		QueryRow(query, txid, vout).
 		Scan(&exists)
 	if err != nil {
-		if strings.Contains(err.Error(), data.DuplicateErrValue) {
-			return false, data.ErrAlreadyExists
-		}
-
-		return false, errors.Wrap(err, "failed to scan results of raw db query")
+		return false, errors.Wrapf(err, "failed to scan results of raw db query")
 	}
 
 	return exists, nil

@@ -14,8 +14,8 @@ import (
 const (
 	blocksTable = "blocks"
 
-	blocksHash   = "hash"
-	blocksHeight = "height"
+	blocksHash            = "hash"
+	blocksPreviousBlockID = "previous_block_id"
 )
 
 type blocksQ struct {
@@ -24,8 +24,8 @@ type blocksQ struct {
 
 func (b *blocksQ) Insert(block data.Block) (*int, error) {
 	query := squirrel.Insert(blocksTable).SetMap(map[string]interface{}{
-		blocksHash:   block.Hash,
-		blocksHeight: block.Height,
+		blocksHash:            block.Hash,
+		blocksPreviousBlockID: block.PreviousBlockID,
 	}).Suffix("RETURNING id")
 
 	var id int
@@ -58,10 +58,12 @@ func (b *blocksQ) Exists(hash string) (bool, error) {
 	return ok, nil
 }
 
-func (b *blocksQ) DeleteUpon(height int32) error {
-	query := squirrel.Delete(blocksTable).Where(squirrel.Gt{
-		blocksHeight: height,
-	})
+func (b *blocksQ) Delete(hash string) error {
+	query := squirrel.
+		Delete(blocksTable).
+		Where(squirrel.Eq{
+			blocksHash: hash,
+		})
 
 	err := b.db.Exec(query)
 	if err != nil {
@@ -91,20 +93,40 @@ func (b *blocksQ) Get(hash string) (*data.Block, error) {
 	return &block, nil
 }
 
-func (b *blocksQ) GetHighest() (*data.Block, error) {
+func (b *blocksQ) GetByPreviousBlockID(previousBlockID int32) (*data.Block, error) {
 	query := squirrel.
 		Select("*").
 		From(blocksTable).
-		OrderBy(blocksHeight + " DESC").
-		Limit(1)
+		Where(squirrel.Eq{
+			blocksPreviousBlockID: previousBlockID,
+		})
 
 	var block data.Block
 	err := b.db.Get(&block, query)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, data.ErrNotFound
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute db query")
+		return nil, errors.Wrap(err, "failed to select from blocks table")
+	}
+
+	return &block, nil
+}
+
+func (b *blocksQ) GetTip() (*data.Block, error) {
+	query := squirrel.
+		Select("b.*").
+		From(blocksTable + " b").
+		LeftJoin(blocksTable + " c ON c." + blocksPreviousBlockID + " = b.id").
+		Where("c.id IS NULL")
+
+	var block data.Block
+	err := b.db.Get(&block, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, data.ErrNotFound
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to left join in blocks table")
 	}
 
 	return &block, nil

@@ -15,22 +15,22 @@ const (
 
 type IndexerInfo interface {
 	GetPollFrequency() time.Duration
-	GetInitialBlockHeight() int64
+	GetInitialBlockHash() string
 	GetNet() chaincfg.Params
 }
 
 type indexerInfo struct {
-	PollFrequency      time.Duration
-	InitialBlockHeight int64
-	Net                chaincfg.Params
+	PollFrequency    time.Duration
+	InitialBlockHash string
+	Net              chaincfg.Params
 }
 
 func (i *indexerInfo) GetPollFrequency() time.Duration {
 	return i.PollFrequency
 }
 
-func (i *indexerInfo) GetInitialBlockHeight() int64 {
-	return i.InitialBlockHeight
+func (i *indexerInfo) GetInitialBlockHash() string {
+	return i.InitialBlockHash
 }
 
 func (i *indexerInfo) GetNet() chaincfg.Params {
@@ -43,10 +43,6 @@ func validateIndexerInfo(i indexerInfo) error {
 		return errors.New("poll frequency must be between 1 second and 24 hours (86400 seconds)")
 	}
 
-	if i.InitialBlockHeight < 0 {
-		return errors.New("initial block height must be greater than 0")
-	}
-
 	return nil
 }
 
@@ -54,7 +50,7 @@ func (c *config) IndexerInfo() IndexerInfo {
 	return c.indexerInfo.Do(func() interface{} {
 		var config struct {
 			PollFrequencySeconds int    `fig:"poll_frequency_seconds"`
-			InitialBlockHeight   int64  `fig:"initial_block_height"`
+			InitialBlockHash     string `fig:"initial_block_hash"`
 			Net                  string `fig:"net"`
 		}
 
@@ -65,14 +61,13 @@ func (c *config) IndexerInfo() IndexerInfo {
 			panic(err)
 		}
 
-		switch {
-		case config.PollFrequencySeconds < 1:
-			panic(errors.New("Poll frequency must be [1; 864000]"))
+		indexerInfo := indexerInfo{
+			PollFrequency:    time.Duration(config.PollFrequencySeconds) * time.Second,
+			InitialBlockHash: config.InitialBlockHash,
 		}
 
-		indexerInfo := indexerInfo{
-			PollFrequency:      time.Duration(config.PollFrequencySeconds) * time.Second,
-			InitialBlockHeight: config.InitialBlockHeight,
+		if indexerInfo.InitialBlockHash == "genesis" {
+			indexerInfo.InitialBlockHash = ""
 		}
 
 		switch config.Net {

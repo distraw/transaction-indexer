@@ -7,7 +7,7 @@ import (
 )
 
 func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) error {
-	const maxRollBack int = 200
+	const maxRollBack int = 100
 
 	var currentBlock *btcjson.GetBlockHeaderVerboseResult = fromBlock
 	for j := 0; j < maxRollBack; j++ {
@@ -17,12 +17,7 @@ func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) err
 		}
 
 		if exists {
-			err = i.storage.Outputs().MarkUnspentAboveHeight(currentBlock.Height)
-			if err != nil {
-				return errors.Wrap(err, "failed to mark utxos unspent above set height")
-			}
-
-			err = i.storage.Blocks().DeleteUpon(currentBlock.Height)
+			err = i.storage.DeleteBlocksAfter(currentBlock.Hash)
 			if err != nil {
 				return errors.Wrap(err, "failed to delete blocks upon set height")
 			}

@@ -9,8 +9,8 @@ indexer:
   ## must be either "mainnet", "testnet3" (version 3) , "testnet4" (version 4)  or "regtest3"
   net: regtest
 
-  ## "genesis" or other block hash
-  initial_block_height: 0
+  ## must be empty "" (genesis), or "genesis" (genesis) or other block hash
+  initial_block_hash: genesis
 
   poll_frequency_seconds: 10
 

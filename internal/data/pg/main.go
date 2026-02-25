@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
@@ -129,7 +130,7 @@ func (s *storage) GetBalance(addr string) (*float64, error) {
 		outputsTable, outputsValue,
 		outputsTable,
 		addressesTable, addressesTable, addressesAddr, outputsTable, outputsAddress,
-		addressesTable, addressesAddr, outputsSpentInBlockHeight,
+		addressesTable, addressesAddr, outputsSpentInTransactionID,
 	)
 
 	var balance float64
@@ -193,7 +194,7 @@ func (s *storage) GetTxs(addr string) ([]data.Transaction, error) {
 }
 
 func (s *storage) GetUtxos(addr string) ([]data.Output, error) {
-	query := squirrel.Select(outputsTxid, outputsVout, outputsValue, outputsSpentInBlockHeight, outputsAddress, outputsTransactionID).
+	query := squirrel.Select(outputsTxid, outputsVout, outputsValue, outputsSpentInTransactionID, outputsAddress, outputsTransactionID).
 		From(outputsTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
@@ -204,7 +205,7 @@ func (s *storage) GetUtxos(addr string) ([]data.Output, error) {
 		Where(
 			squirrel.Eq{
 				fmt.Sprintf("%s.%s", addressesTable, addressesAddr): addr,
-				outputsSpentInBlockHeight:                           nil,
+				outputsSpentInTransactionID:                         nil,
 			},
 		)
 
@@ -218,7 +219,7 @@ func (s *storage) GetUtxos(addr string) ([]data.Output, error) {
 }
 
 func (s *storage) GetOutputsInTransaction(txid string) ([]data.Output, error) {
-	query := squirrel.Select(fmt.Sprintf("%s.%s", outputsTable, outputsTxid), outputsVout, outputsValue, outputsSpentInBlockHeight, outputsAddress, outputsTransactionID).
+	query := squirrel.Select(fmt.Sprintf("%s.%s", outputsTable, outputsTxid), outputsVout, outputsValue, outputsSpentInTransactionID, outputsAddress, outputsTransactionID).
 		From(outputsTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
@@ -263,6 +264,34 @@ func (s *storage) GetInputsInTransaction(txid string) ([]data.Input, error) {
 
 func (s *storage) New() data.Storage {
 	return NewStorage(s.db.Clone())
+}
+
+func (s *storage) DeleteBlocksAfter(afterHash string) error {
+	getIDQuery := squirrel.
+		Select("id").
+		From(blocksTable).
+		Where(squirrel.Eq{
+			blocksHash: afterHash,
+		})
+
+	var block data.Block
+	err := s.db.Get(&block, getIDQuery)
+	if errors.Is(err, sql.ErrNoRows) {
+		return data.ErrNotFound
+	}
+
+	deleteQuery := squirrel.
+		Delete(blocksTable).
+		Where(squirrel.Eq{
+			blocksPreviousBlockID: block.ID,
+		})
+
+	err = s.db.Exec(deleteQuery)
+	if err != nil {
+		return errors.Wrap(err, "failed to exec db query")
+	}
+
+	return nil
 }
 
 func NewStorage(db *pgdb.DB) data.Storage {

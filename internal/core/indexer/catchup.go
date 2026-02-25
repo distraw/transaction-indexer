@@ -6,8 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// catchUp processes every block starting from initial height
-// up to the best one included.
+// catchUp processes every block starting from initial hash
+// up to the best one
 func (i *indexer) catchUp(initialHeight int64) error {
 	i.catchedUp.Store(false)
 

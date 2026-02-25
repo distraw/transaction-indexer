@@ -40,9 +40,9 @@ type indexer struct {
 	started   atomic.Bool
 	catchedUp atomic.Bool
 
-	pollFrequency      time.Duration
-	initialBlockHeight int64
-	netParams          chaincfg.Params
+	pollFrequency    time.Duration
+	initialBlockHash string
+	netParams        chaincfg.Params
 
 	currentHash *chainhash.Hash
 }
@@ -55,14 +55,21 @@ func (i *indexer) Run() error {
 	}
 
 	i.started.Store(true)
-	i.log.Infof("Starting from block %d", i.initialBlockHeight)
+	i.log.Infof("Starting from block %s", i.initialBlockHash)
 
-	err := i.catchUp(i.initialBlockHeight)
+	initialBlockHash, err := i.rpc.GetBlockHash(0)
+	if err != nil {
+		return errors.Wrap(err, "failed to get initial block hash")
+	}
+
+	i.initialBlockHash = initialBlockHash.String()
+
+	err = i.catchUp(0)
 	if err != nil {
 		return errors.Wrap(err, "failed to catch-up to initial block height")
 	}
 
-	block, err := i.storage.Blocks().GetHighest()
+	block, err := i.storage.Blocks().GetTip()
 	if err != nil && !errors.Is(err, data.ErrNotFound) {
 		return errors.Wrap(err, "failed to get highest block from db")
 	}
@@ -116,9 +123,9 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 		log:     log,
 		rpc:     rpc,
 
-		pollFrequency:      info.GetPollFrequency(),
-		initialBlockHeight: info.GetInitialBlockHeight(),
-		netParams:          info.GetNet(),
+		pollFrequency:    info.GetPollFrequency(),
+		initialBlockHash: info.GetInitialBlockHash(),
+		netParams:        info.GetNet(),
 
 		scheduler: tasks.New(),
 

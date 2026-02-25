@@ -20,5 +20,7 @@ type Storage interface {
 	GetOutputsInTransaction(txid string) ([]Output, error)
 	GetInputsInTransaction(txid string) ([]Input, error)
 
+	DeleteBlocksAfter(afterHash string) error
+
 	New() Storage
 }

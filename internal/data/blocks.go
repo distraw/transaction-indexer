@@ -3,13 +3,14 @@ package data
 type BlocksQ interface {
 	Insert(block Block) (id *int, err error)
 	Exists(hash string) (bool, error)
-	DeleteUpon(height int32) error
+	Delete(hash string) error
 	Get(hash string) (*Block, error)
-	GetHighest() (*Block, error)
+	GetByPreviousBlockID(previousBlockID int32) (*Block, error)
+	GetTip() (*Block, error)
 }
 
 type Block struct {
-	ID     int    `structs:"id" db:"id"`
-	Hash   string `structs:"hash" db:"hash"`
-	Height int32  `structs:"height" db:"height"`
+	ID              int32  `structs:"id" db:"id"`
+	Hash            string `structs:"hash" db:"hash"`
+	PreviousBlockID *int32 `structs:"previous_block_id" db:"previous_block_id"`
 }

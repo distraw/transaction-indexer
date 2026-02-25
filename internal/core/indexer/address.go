@@ -21,8 +21,8 @@ func decodeScriptPubKeys(scriptPubKeys []string) ([][]byte, error) {
 	return decoded, nil
 }
 
-func (i *indexer) getAddressFromScriptPubKey(scriptPubKeyHex string) (string, error) {
-	address, err := bitcoin.ToAddress(scriptPubKeyHex, &i.netParams)
+func (i *indexer) getAddressFromScriptPubKey(scriptPubKey []byte) (string, error) {
+	address, err := bitcoin.ToAddress(scriptPubKey, &i.netParams)
 	if errors.Is(err, bitcoin.ErrNoAddress) {
 		return "not_found", nil
 	}

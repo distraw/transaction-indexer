@@ -23,7 +23,7 @@ CREATE TABLE users_addresses (
 CREATE TABLE blocks (
     id SERIAL PRIMARY KEY,
     hash TEXT UNIQUE NOT NULL,
-    height BIGINT NOT NULL UNIQUE
+    previous_block_id INT REFERENCES blocks(id) ON DELETE CASCADE NULL
 );
 
 CREATE TABLE transactions (
@@ -43,7 +43,7 @@ CREATE TABLE outputs (
 
     value DECIMAL NOT NULL,
 
-    spent_in_block_height INT,
+    spent_in_transaction_id INT REFERENCES transactions(id) ON DELETE SET NULL,
 
     address TEXT NOT NULL,
     transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
