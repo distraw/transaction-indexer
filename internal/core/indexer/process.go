@@ -5,29 +5,9 @@ import (
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/pkg/errors"
 )
-
-var (
-	ErrUnusualScript = errors.New("non-usual script detected")
-)
-
-func (i *indexer) getAddressFromScriptPubKey(scriptPubKeyHex string) (string, error) {
-	address, err := bitcoin.ToAddress(scriptPubKeyHex, &i.netParams)
-	if errors.Is(err, bitcoin.ErrNoAddress) {
-		return "not_found", nil
-	}
-	if errors.Is(err, bitcoin.ErrMultipleAddresses) {
-		return "multiple", nil
-	}
-	if err != nil {
-		return "", errors.Wrap(err, "failed to convert scriptPubKey (hex format) to bitcoin address")
-	}
-
-	return address, nil
-}
 
 func (i *indexer) getInputInfo(in btcjson.Vin) (sender string, value float64, e error) {
 	if in.IsCoinBase() {
@@ -190,16 +170,6 @@ func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to insert new block into storage")
-	}
-
-	containsTrackedAddresses, err := i.filterBlock(blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to check block filter")
-	}
-	// block filter shows no presence of tracked addresses in txs
-	// => further block processing is redundant
-	if !containsTrackedAddresses {
-		return nil
 	}
 
 	block, err := i.rpc.GetBlockVerboseTx(blockHash)
