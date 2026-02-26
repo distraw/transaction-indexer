@@ -1,0 +1,51 @@
+services:
+  transaction-indexer:
+    image: transaction-indexer:latest
+    environment:
+      - KV_VIPER_FILE=/usr/local/bin/config.yaml
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./config.local.yaml:/usr/local/bin/config.yaml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    entrypoint: sh -c "transaction-indexer migrate up && transaction-indexer run service"
+  db:
+    image: postgres:latest
+    hostname: host-db
+    container_name: db-container
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=user_0
+      - POSTGRES_PASSWORD=password_0
+      - POSTGRES_DB=database_0
+      - PGDATA=/pgdata
+    volumes:
+      - db-data:/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U healthchecker -d database_0" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  bitcoin:
+    image: ruimarinho/bitcoin-core:24
+    container_name: regtest
+    platform: linux/amd64
+    ports:
+      - "18443:18443"
+    command:
+      - -regtest=1
+      - -server=1
+      - -txindex=1
+      - -printtoconsole=1
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=rpcuser_0
+      - -rpcpassword=rpcpassword_0
+      - -blockfilterindex=1
+      - -fallbackfee=0.0001
+
+volumes:
+  db-data:

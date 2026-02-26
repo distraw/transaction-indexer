@@ -1,0 +1,23 @@
+log:
+  disable_sentry: true
+  level: debug
+
+listener:
+  addr: :8080
+
+indexer:
+  initial_block_height: 1
+  poll_frequency_seconds: 10
+  ## must be either "mainnet", "testnet3" (version 3) , "testnet4" (version 4)  or "regtest3"
+  net: regtest
+
+rpc:
+  #host: bitcoin-testnet-rpc.publicnode.com:443
+  host: rpcuser_0:rpcpassword_0@bitcoin:18443
+  user: rpcuser_0
+  pass: rpcpassword_0
+  http_post_mode: true
+  disable_tls: true
+
+db:
+  url: postgres://user_0:password_0@db:5432/database_0?sslmode=disable
