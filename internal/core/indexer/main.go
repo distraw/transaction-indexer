@@ -9,10 +9,11 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/config"
+	"github.com/distraw/transaction-indexer/internal/core/node"
 	"github.com/distraw/transaction-indexer/internal/data"
-	"github.com/madflojo/tasks"
 	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/logan/v3"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -31,17 +32,20 @@ type Indexer interface {
 type indexer struct {
 	log *logan.Entry
 
-	context   context.Context
-	storage   data.Storage
-	rpc       *rpcclient.Client
-	scheduler *tasks.Scheduler
+	node node.Node
+
+	context context.Context
+	storage data.Storage
+
+	// TODO: delete this
+	rpc *rpcclient.Client
 
 	start     chan struct{}
 	started   atomic.Bool
 	catchedUp atomic.Bool
 
 	pollFrequency    time.Duration
-	initialBlockHash string
+	initialBlockHash *chainhash.Hash
 	netParams        chaincfg.Params
 
 	currentHash *chainhash.Hash
@@ -62,7 +66,7 @@ func (i *indexer) Run() error {
 		return errors.Wrap(err, "failed to get initial block hash")
 	}
 
-	i.initialBlockHash = initialBlockHash.String()
+	i.initialBlockHash = initialBlockHash
 
 	err = i.catchUp(0)
 	if err != nil {
@@ -82,20 +86,17 @@ func (i *indexer) Run() error {
 		}
 	}
 
-	defer i.scheduler.Stop()
-	_, err = i.scheduler.Add(&tasks.Task{
-		Interval: i.pollFrequency,
-		TaskFunc: i.poll,
-		ErrFunc: func(err error) {
-			i.log.WithError(err).Error("poller failed during routine poll")
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "scheduler failed unexpectedly")
-	}
+	g, ctx := errgroup.WithContext(i.context)
 
-	<-i.context.Done()
-	return nil
+	g.Go(func() error {
+		err = i.node.SubscribeToBlocks(ctx, i.poll)
+		if err != nil {
+			return errors.Wrap(err, "failed to subscribe to blocks")
+		}
+		return nil
+	})
+
+	return g.Wait()
 }
 
 func (i *indexer) IsStarted() bool {
@@ -123,11 +124,12 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 		log:     log,
 		rpc:     rpc,
 
+		// TODO
+		node: node.NewRPC(log, rpc, info.GetPollFrequency(), info.GetNet(), info.GetInitialBlockHash()),
+
 		pollFrequency:    info.GetPollFrequency(),
 		initialBlockHash: info.GetInitialBlockHash(),
 		netParams:        info.GetNet(),
-
-		scheduler: tasks.New(),
 
 		start: make(chan struct{}),
 	}

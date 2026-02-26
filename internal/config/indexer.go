@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"gitlab.com/distributed_lab/figure"
 	"gitlab.com/distributed_lab/kit/kv"
 )
@@ -15,13 +16,13 @@ const (
 
 type IndexerInfo interface {
 	GetPollFrequency() time.Duration
-	GetInitialBlockHash() string
+	GetInitialBlockHash() *chainhash.Hash
 	GetNet() chaincfg.Params
 }
 
 type indexerInfo struct {
 	PollFrequency    time.Duration
-	InitialBlockHash string
+	InitialBlockHash *chainhash.Hash
 	Net              chaincfg.Params
 }
 
@@ -29,7 +30,7 @@ func (i *indexerInfo) GetPollFrequency() time.Duration {
 	return i.PollFrequency
 }
 
-func (i *indexerInfo) GetInitialBlockHash() string {
+func (i *indexerInfo) GetInitialBlockHash() *chainhash.Hash {
 	return i.InitialBlockHash
 }
 
@@ -61,13 +62,18 @@ func (c *config) IndexerInfo() IndexerInfo {
 			panic(err)
 		}
 
-		indexerInfo := indexerInfo{
-			PollFrequency:    time.Duration(config.PollFrequencySeconds) * time.Second,
-			InitialBlockHash: config.InitialBlockHash,
+		if config.InitialBlockHash == "genesis" {
+			config.InitialBlockHash = ""
 		}
 
-		if indexerInfo.InitialBlockHash == "genesis" {
-			indexerInfo.InitialBlockHash = ""
+		initialHash, err := chainhash.NewHashFromStr(config.InitialBlockHash)
+		if err != nil {
+			panic(err)
+		}
+
+		indexerInfo := indexerInfo{
+			PollFrequency:    time.Duration(config.PollFrequencySeconds) * time.Second,
+			InitialBlockHash: initialHash,
 		}
 
 		switch config.Net {

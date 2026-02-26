@@ -7,16 +7,7 @@ import (
 )
 
 // routinePoll polls every once in a while and processes every new incoming block
-func (i *indexer) poll() error {
-	newHash, err := i.rpc.GetBestBlockHash()
-	if err != nil {
-		return errors.Wrap(err, "failed to get best block hash")
-	}
-	if newHash.IsEqual(i.currentHash) {
-		// new block was not mined yet
-		return nil
-	}
-
+func (i *indexer) poll(newHash *chainhash.Hash) error {
 	i.log.
 		WithField("prev_hash", i.currentHash).
 		WithField("new_hash", newHash).
