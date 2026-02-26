@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -38,13 +37,42 @@ func (i *indexerInfo) GetNet() chaincfg.Params {
 	return i.Net
 }
 
-func validateIndexerInfo(i indexerInfo) error {
-	if i.PollFrequency < time.Second ||
-		i.PollFrequency > time.Hour*24 {
-		return errors.New("poll frequency must be between 1 second and 24 hours (86400 seconds)")
+func parsePollFrequency(seconds int) time.Duration {
+	const day int = 60 * 60 * 24
+
+	if seconds < 1 || seconds > day {
+		panic("poll frequency must be between 1 second and 24 hours (86400 seconds)")
 	}
 
-	return nil
+	return time.Duration(seconds) * time.Second
+}
+
+func parseNetParams(params string) chaincfg.Params {
+	switch params {
+	case "mainnet":
+		return chaincfg.MainNetParams
+	case "testnet3":
+		return chaincfg.TestNet3Params
+	case "testnet4":
+		return chaincfg.TestNet4Params
+	case "regtest":
+		return chaincfg.RegressionNetParams
+	}
+
+	panic("invalid network params were providen: must be either mainnet, testnet3, testnet4 or regtest")
+}
+
+func parseInitialHash(hash string, params chaincfg.Params) *chainhash.Hash {
+	if hash == "genesis" || len(hash) == 0 {
+		return params.GenesisHash
+	}
+
+	parsedHash, err := chainhash.NewHashFromStr(hash)
+	if err != nil {
+		panic(err)
+	}
+
+	return parsedHash
 }
 
 func (c *config) IndexerInfo() IndexerInfo {
@@ -62,36 +90,10 @@ func (c *config) IndexerInfo() IndexerInfo {
 			panic(err)
 		}
 
-		if config.InitialBlockHash == "genesis" {
-			config.InitialBlockHash = ""
-		}
-
-		initialHash, err := chainhash.NewHashFromStr(config.InitialBlockHash)
-		if err != nil {
-			panic(err)
-		}
-
 		indexerInfo := indexerInfo{
-			PollFrequency:    time.Duration(config.PollFrequencySeconds) * time.Second,
-			InitialBlockHash: initialHash,
-		}
-
-		switch config.Net {
-		case "mainnet":
-			indexerInfo.Net = chaincfg.MainNetParams
-		case "testnet3":
-			indexerInfo.Net = chaincfg.TestNet3Params
-		case "testnet4":
-			indexerInfo.Net = chaincfg.TestNet4Params
-		case "regtest":
-			indexerInfo.Net = chaincfg.RegressionNetParams
-		default:
-			panic("invalid network params were providen: must be either mainnet, testnet3, testnet4 or regtest")
-		}
-
-		err = validateIndexerInfo(indexerInfo)
-		if err != nil {
-			panic(err)
+			PollFrequency:    parsePollFrequency(config.PollFrequencySeconds),
+			Net:              parseNetParams(config.Net),
+			InitialBlockHash: parseInitialHash(config.InitialBlockHash, parseNetParams(config.Net)),
 		}
 
 		return &indexerInfo

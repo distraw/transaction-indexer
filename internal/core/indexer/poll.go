@@ -23,12 +23,10 @@ func (i *indexer) poll(newHash *chainhash.Hash) error {
 			return errors.Wrap(err, "failed to reorganize")
 		}
 
-		// since everything including the newest block was processed,
-		// no sense to process the newest block again
 		return nil
 	}
 
-	err = i.processBlock(newHash)
+	err = i.processBlock(*newHash)
 	if errors.Is(err, data.ErrAlreadyExists) {
 		return nil
 	}

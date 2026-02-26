@@ -218,6 +218,26 @@ func (s *storage) GetUtxos(addr string) ([]data.Output, error) {
 	return outputs, nil
 }
 
+func (s *storage) GetBlockOnDepth(depth int) (*data.Block, error) {
+	current, err := s.blocks.GetTip()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tip of local chain")
+	}
+
+	for i := 0; i < depth; i++ {
+		if current.PreviousBlockID == nil {
+			return current, nil
+		}
+
+		current, err = s.blocks.GetByID(*current.PreviousBlockID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get block by id in local chain")
+		}
+	}
+
+	return current, nil
+}
+
 func (s *storage) GetOutputsInTransaction(txid string) ([]data.Output, error) {
 	query := squirrel.Select(fmt.Sprintf("%s.%s", outputsTable, outputsTxid), outputsVout, outputsValue, outputsSpentInTransactionID, outputsAddress, outputsTransactionID).
 		From(outputsTable).

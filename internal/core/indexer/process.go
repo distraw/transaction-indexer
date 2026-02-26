@@ -158,8 +158,8 @@ func (i *indexer) processTransactions(block *wire.MsgBlock, timestamp int64, dbB
 	return nil
 }
 
-func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
-	header, err := i.rpc.GetBlockHeaderVerbose(blockHash)
+func (i *indexer) processBlock(blockHash chainhash.Hash) error {
+	header, err := i.rpc.GetBlockHeaderVerbose(&blockHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to get verbose block header from rpc client")
 	}
@@ -190,7 +190,7 @@ func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
 		return errors.Wrap(err, "failed to insert new block into storage")
 	}
 
-	block, err := i.rpc.GetBlock(blockHash)
+	block, err := i.rpc.GetBlock(&blockHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
 	}

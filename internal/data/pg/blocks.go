@@ -93,6 +93,26 @@ func (b *blocksQ) Get(hash string) (*data.Block, error) {
 	return &block, nil
 }
 
+func (b *blocksQ) GetByID(id int32) (*data.Block, error) {
+	query := squirrel.
+		Select("*").
+		From(blocksTable).
+		Where(squirrel.Eq{
+			"id": id,
+		})
+
+	var block data.Block
+	err := b.db.Get(&block, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, data.ErrNotFound
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get from blocks table")
+	}
+
+	return &block, nil
+}
+
 func (b *blocksQ) GetByPreviousBlockID(previousBlockID int32) (*data.Block, error) {
 	query := squirrel.
 		Select("*").

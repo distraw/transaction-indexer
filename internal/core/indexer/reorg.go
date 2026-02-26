@@ -7,10 +7,10 @@ import (
 )
 
 func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) error {
-	const maxRollBack int = 100
-
+	i.log.Infof("Reorganization started.")
+	defer i.log.Infof("Reorganization finished.")
 	var currentBlock *btcjson.GetBlockHeaderVerboseResult = fromBlock
-	for j := 0; j < maxRollBack; j++ {
+	for {
 		exists, err := i.storage.Blocks().Exists(currentBlock.Hash)
 		if err != nil {
 			return errors.Wrap(err, "failed to check block existence at set hash")
@@ -22,7 +22,12 @@ func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) err
 				return errors.Wrap(err, "failed to delete blocks upon set height")
 			}
 
-			err = i.catchUp(int64(currentBlock.Height + 1))
+			currentBlockHash, err := chainhash.NewHashFromStr(currentBlock.Hash)
+			if err != nil {
+				return errors.Wrap(err, "failed to generate hash from current block hash")
+			}
+
+			err = i.catchUp(currentBlockHash)
 			if err != nil {
 				return errors.Wrap(err, "failed to catch up")
 			}
@@ -40,6 +45,4 @@ func (i *indexer) reorganize(fromBlock *btcjson.GetBlockHeaderVerboseResult) err
 			return errors.Wrap(err, "failed to get verbose block header from rpc client")
 		}
 	}
-
-	panic("deep reorg occured!!")
 }

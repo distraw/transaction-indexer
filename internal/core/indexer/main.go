@@ -61,14 +61,7 @@ func (i *indexer) Run() error {
 	i.started.Store(true)
 	i.log.Infof("Starting from block %s", i.initialBlockHash)
 
-	initialBlockHash, err := i.rpc.GetBlockHash(0)
-	if err != nil {
-		return errors.Wrap(err, "failed to get initial block hash")
-	}
-
-	i.initialBlockHash = initialBlockHash
-
-	err = i.catchUp(0)
+	err := i.catchUp(i.initialBlockHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to catch-up to initial block height")
 	}

@@ -17,6 +17,11 @@ type Storage interface {
 	GetTxs(addr string) ([]Transaction, error)
 	GetUtxos(addr string) ([]Output, error)
 
+	// GetBlockOnDepth returns block on given depth in storage
+	//
+	// If local chain is shorter than depth, first block in chain would be returned
+	GetBlockOnDepth(depth int) (*Block, error)
+
 	GetOutputsInTransaction(txid string) ([]Output, error)
 	GetInputsInTransaction(txid string) ([]Input, error)
 

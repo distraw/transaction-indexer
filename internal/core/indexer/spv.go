@@ -99,6 +99,7 @@ func (i *indexer) validatePreviousHash(header *btcjson.GetBlockHeaderVerboseResu
 func (i *indexer) validateBlockHeader(header *btcjson.GetBlockHeaderVerboseResult) error {
 	err := i.validatePreviousHash(header)
 	if err != nil {
+		i.log.Infof("prevHash=%s, initialHash=%s", header.PreviousHash, i.initialBlockHash.String())
 		return errors.Wrap(err, "failed to validate previous hash")
 	}
 

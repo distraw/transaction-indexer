@@ -5,6 +5,7 @@ type BlocksQ interface {
 	Exists(hash string) (bool, error)
 	Delete(hash string) error
 	Get(hash string) (*Block, error)
+	GetByID(id int32) (*Block, error)
 	GetByPreviousBlockID(previousBlockID int32) (*Block, error)
 	GetTip() (*Block, error)
 }
