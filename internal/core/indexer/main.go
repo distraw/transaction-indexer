@@ -114,7 +114,7 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 		log:     log,
 
 		// TODO
-		node: node.NewRPC(log, rpc, info.GetPollFrequency(), info.GetNet(), info.GetInitialBlockHash()),
+		node: node.NewRPC(rpc, info.GetPollFrequency(), info.GetNet(), info.GetInitialBlockHash()),
 
 		pollFrequency:    info.GetPollFrequency(),
 		initialBlockHash: info.GetInitialBlockHash(),

@@ -11,11 +11,9 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/madflojo/tasks"
 	"github.com/pkg/errors"
-	"gitlab.com/distributed_lab/logan/v3"
 )
 
 type rpcNode struct {
-	log       *logan.Entry
 	client    *rpcclient.Client
 	scheduler *tasks.Scheduler
 
@@ -119,7 +117,6 @@ func (r *rpcNode) findCommonAncestor(locators []*chainhash.Hash) (*btcjson.GetBl
 		}
 
 		if !exists {
-			r.log.Infof("header is missing on node %s", locators[i])
 			continue
 		}
 
@@ -171,13 +168,11 @@ func (r *rpcNode) GetHeaders(locators []*chainhash.Hash, stop *chainhash.Hash) (
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get starting height")
 	}
-	r.log.Infof("starting height is %d", startHeight)
 
 	stopHeight, err := r.getStopHeight(stop)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get stophash header from rpc node")
 	}
-	r.log.Infof("stop height is %d", stopHeight)
 
 	var headers []*wire.BlockHeader
 
@@ -208,10 +203,9 @@ func (r *rpcNode) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 	return block, nil
 }
 
-func NewRPC(log *logan.Entry, rpc *rpcclient.Client, pollFrequency time.Duration,
+func NewRPC(rpc *rpcclient.Client, pollFrequency time.Duration,
 	netParams chaincfg.Params, initialBlockHash *chainhash.Hash) Node {
 	return &rpcNode{
-		log:              log,
 		client:           rpc,
 		scheduler:        tasks.New(),
 		pollFrequency:    pollFrequency,

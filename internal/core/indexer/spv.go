@@ -2,38 +2,11 @@ package indexer
 
 import (
 	"math/big"
-	"slices"
-	"strconv"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/pkg/errors"
 )
-
-func hashToBigEndian(rawHash string) (*big.Int, error) {
-	hash, err := chainhash.NewHashFromStr(rawHash)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate hash from raw string")
-	}
-
-	if len(hash) != 32 {
-		return nil, errors.New("hash hex is of incorrect size, must be 32 bytes long")
-	}
-
-	// Little-endian to big-endian
-	slices.Reverse(hash[:])
-
-	return new(big.Int).SetBytes(hash[:]), nil
-}
-
-func hexBitsToUint32(bitsHex string) (uint32, error) {
-	bits64, err := strconv.ParseUint(bitsHex, 16, 32)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to parse bitsHex to uint64")
-	}
-
-	return uint32(bits64), nil
-}
 
 func bitsToTarget(bits uint32) (*big.Int, error) {
 	if bits&0x00800000 != 0 {

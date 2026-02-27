@@ -1,25 +1,9 @@
 package indexer
 
 import (
-	"encoding/hex"
-
 	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/pkg/errors"
 )
-
-func decodeScriptPubKeys(scriptPubKeys []string) ([][]byte, error) {
-	decoded := make([][]byte, len(scriptPubKeys))
-
-	var err error
-	for i, spk := range scriptPubKeys {
-		decoded[i], err = hex.DecodeString(spk)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode scriptPubKey from string to hex")
-		}
-	}
-
-	return decoded, nil
-}
 
 func (i *indexer) getAddressFromScriptPubKey(scriptPubKey []byte) (string, error) {
 	address, err := bitcoin.ToAddress(scriptPubKey, &i.netParams)
