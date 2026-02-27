@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/pkg/errors"
 )
 
@@ -35,12 +35,7 @@ func hexBitsToUint32(bitsHex string) (uint32, error) {
 	return uint32(bits64), nil
 }
 
-func bitsToTarget(bitsHex string) (*big.Int, error) {
-	bits, err := hexBitsToUint32(bitsHex)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert raw bitsHex from string to uint32")
-	}
-
+func bitsToTarget(bits uint32) (*big.Int, error) {
 	if bits&0x00800000 != 0 {
 		return nil, errors.New("invalid bits (negative target)")
 	}
@@ -62,25 +57,30 @@ func bitsToTarget(bitsHex string) (*big.Int, error) {
 	return target, nil
 }
 
-func isDifficultyMet(bits string, blockHash string) (bool, error) {
+func reverseHash(hash chainhash.Hash) chainhash.Hash {
+	for i := 0; i < len(hash)/2; i++ {
+		hash[i], hash[len(hash)-1-i] =
+			hash[len(hash)-1-i], hash[i]
+	}
+
+	return hash
+}
+
+func isDifficultyMet(bits uint32, blockHash chainhash.Hash) (bool, error) {
 	target, err := bitsToTarget(bits)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to convert block bits to target")
 	}
 
-	bigEndianBlockHash, err := hashToBigEndian(blockHash)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to parse block hash from string to big-endian big int")
-	}
+	bigEndianHash := reverseHash(blockHash)
 
-	return bigEndianBlockHash.Cmp(target) <= 0, nil
+	hashInt := new(big.Int).SetBytes(bigEndianHash[:])
+
+	return hashInt.Cmp(target) <= 0, nil
 }
 
-func (i *indexer) validatePreviousHash(header *btcjson.GetBlockHeaderVerboseResult) error {
-	headerHash, err := chainhash.NewHashFromStr(header.Hash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get hash from header")
-	}
+func (i *indexer) validatePreviousHash(header *wire.BlockHeader) error {
+	headerHash := header.BlockHash()
 
 	if headerHash.IsEqual(i.netParams.GenesisHash) && i.initialBlockHash.IsEqual(&chainhash.Hash{}) {
 		return nil
@@ -91,7 +91,7 @@ func (i *indexer) validatePreviousHash(header *btcjson.GetBlockHeaderVerboseResu
 		return nil
 	}
 
-	exists, err := i.storage.Blocks().Exists(header.PreviousHash)
+	exists, err := i.storage.Blocks().Exists(header.PrevBlock.String())
 	if err != nil {
 		return errors.Wrap(err, "failed to check block existence with given hash in db")
 	}
@@ -105,14 +105,14 @@ func (i *indexer) validatePreviousHash(header *btcjson.GetBlockHeaderVerboseResu
 // validateBlock checks if all SPV requirements are met for the block.
 //
 // Returns nil if block is valid or error otherwise
-func (i *indexer) validateBlockHeader(header *btcjson.GetBlockHeaderVerboseResult) error {
+func (i *indexer) validateBlockHeader(header *wire.BlockHeader) error {
 	err := i.validatePreviousHash(header)
 	if err != nil {
-		i.log.Infof("prevHash=%s, initialHash=%s", header.PreviousHash, i.initialBlockHash.String())
+		i.log.Infof("prevHash=%s, initialHash=%s", header.PrevBlock, i.initialBlockHash)
 		return errors.Wrap(err, "failed to validate previous hash")
 	}
 
-	met, err := isDifficultyMet(header.Bits, header.Hash)
+	met, err := isDifficultyMet(header.Bits, header.BlockHash())
 	if err != nil {
 		return errors.Wrap(err, "failed to check if difficulty is met in the block")
 	}

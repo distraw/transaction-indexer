@@ -37,9 +37,6 @@ type indexer struct {
 	context context.Context
 	storage data.Storage
 
-	// TODO: delete this
-	rpc *rpcclient.Client
-
 	start     chan struct{}
 	started   atomic.Bool
 	catchedUp atomic.Bool
@@ -115,7 +112,6 @@ func New(context context.Context, storage data.Storage, log *logan.Entry,
 		context: context,
 		storage: storage.New(),
 		log:     log,
-		rpc:     rpc,
 
 		// TODO
 		node: node.NewRPC(log, rpc, info.GetPollFrequency(), info.GetNet(), info.GetInitialBlockHash()),

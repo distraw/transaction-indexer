@@ -12,11 +12,12 @@ func (i *indexer) poll(newHash *chainhash.Hash) error {
 		return nil
 	}
 
-	newBlockHeader, err := i.rpc.GetBlockHeaderVerbose(newHash)
+	newBlock, err := i.node.GetBlock(newHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to get verbose block header")
 	}
-	if !(i.currentHash.IsEqual(nil) || i.currentHash.IsEqual(&chainhash.Hash{})) && newBlockHeader.PreviousHash != i.currentHash.String() {
+	if !(i.currentHash.IsEqual(nil) || i.currentHash.IsEqual(&chainhash.Hash{})) && !newBlock.Header.PrevBlock.IsEqual(i.currentHash) {
+		i.log.Infof("Start syncing because new hash is %s", newHash)
 		err = i.synchronizeChain()
 		if err != nil {
 			return errors.Wrap(err, "failed to synchronize remote and local chain")
@@ -30,7 +31,7 @@ func (i *indexer) poll(newHash *chainhash.Hash) error {
 		WithField("new_hash", newHash).
 		Info("new block detected")
 
-	err = i.processBlock(*newHash)
+	err = i.processBlock(newBlock)
 	if errors.Is(err, data.ErrAlreadyExists) {
 		return nil
 	}

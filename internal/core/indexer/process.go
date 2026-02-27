@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
@@ -165,19 +164,14 @@ func (i *indexer) processTransactions(block *wire.MsgBlock, timestamp int64, dbB
 	return nil
 }
 
-func (i *indexer) processBlock(blockHash chainhash.Hash) error {
-	header, err := i.rpc.GetBlockHeaderVerbose(&blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get verbose block header from rpc client")
-	}
-
-	err = i.validateBlockHeader(header)
+func (i *indexer) processBlock(block *wire.MsgBlock) error {
+	err := i.validateBlockHeader(&block.Header)
 	if err != nil {
 		return errors.Wrap(err, "invalid block header")
 	}
 
 	var prevBlockID *int32
-	switch prevBlock, err := i.storage.Blocks().Get(header.PreviousHash); err {
+	switch prevBlock, err := i.storage.Blocks().Get(block.Header.PrevBlock.String()); err {
 	case nil:
 		prevBlockID = &prevBlock.ID
 	case data.ErrNotFound:
@@ -187,16 +181,11 @@ func (i *indexer) processBlock(blockHash chainhash.Hash) error {
 	}
 
 	dbBlockID, err := i.storage.Blocks().Insert(data.Block{
-		Hash:            header.Hash,
+		Hash:            block.BlockHash().String(),
 		PreviousBlockID: prevBlockID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to insert new block into storage")
-	}
-
-	block, err := i.rpc.GetBlock(&blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
 	}
 
 	err = i.processTransactions(block, block.Header.Timestamp.Unix(), *dbBlockID)
@@ -204,7 +193,8 @@ func (i *indexer) processBlock(blockHash chainhash.Hash) error {
 		return errors.Wrap(err, "failed to process transactions")
 	}
 
-	i.currentHash = &blockHash
+	newCurrentHash := block.BlockHash()
+	i.currentHash = &newCurrentHash
 
 	return nil
 }

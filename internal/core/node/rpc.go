@@ -86,20 +86,6 @@ func (r *rpcNode) poll(callback func(newBlockHash *chainhash.Hash) error) error 
 	return nil
 }
 
-func (r *rpcNode) getGenesisHeader() (*btcjson.GetBlockHeaderVerboseResult, error) {
-	genesisHash, err := r.client.GetBlockHash(0)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get hash of genesis block from rpc node")
-	}
-
-	genesisHeader, err := r.client.GetBlockHeaderVerbose(genesisHash)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get header of genesis block from rpc node")
-	}
-
-	return genesisHeader, nil
-}
-
 func (r *rpcNode) doesHeaderExistOnNode(header *btcjson.GetBlockHeaderVerboseResult) (bool, error) {
 	blockCount, err := r.client.GetBlockCount()
 	if err != nil {

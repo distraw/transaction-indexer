@@ -15,7 +15,13 @@ func (i *indexer) catchUp(initialHash *chainhash.Hash) error {
 
 	i.log.Debugf("Catch-up started. %d blocks to process", len(headers))
 	for _, header := range headers {
-		err = i.processBlock(header.BlockHash())
+		blockHash := header.BlockHash()
+		block, err := i.node.GetBlock(&blockHash)
+		if err != nil {
+			return errors.Wrap(err, "failed to get block from rpc node")
+		}
+
+		err = i.processBlock(block)
 		if err != nil {
 			return errors.Wrapf(err, "failed to process block %s", header.BlockHash().String())
 		}
