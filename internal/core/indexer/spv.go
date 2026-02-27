@@ -77,8 +77,17 @@ func isDifficultyMet(bits string, blockHash string) (bool, error) {
 }
 
 func (i *indexer) validatePreviousHash(header *btcjson.GetBlockHeaderVerboseResult) error {
+	headerHash, err := chainhash.NewHashFromStr(header.Hash)
+	if err != nil {
+		return errors.Wrap(err, "failed to get hash from header")
+	}
+
+	if headerHash.IsEqual(i.netParams.GenesisHash) && i.initialBlockHash.IsEqual(&chainhash.Hash{}) {
+		return nil
+	}
+
 	// Starting point, no local blocks before initial height
-	if header.Hash == i.initialBlockHash.String() {
+	if headerHash.IsEqual(i.initialBlockHash) {
 		return nil
 	}
 

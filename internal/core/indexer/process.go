@@ -39,12 +39,15 @@ func (i *indexer) processInputs(vin []*wire.TxIn, dbTransactionID int) error {
 			return errors.Wrap(err, "failed to get sender address for input")
 		}
 
-		i.storage.Inputs().Insert(data.Input{
+		err = i.storage.Inputs().Insert(data.Input{
 			FromAddress:   senderAddress,
 			Value:         value,
 			TransactionID: dbTransactionID,
 			Vin:           j,
 		})
+		if err != nil {
+			return errors.Wrap(err, "failed to insert input into local storage")
+		}
 
 		if bitcoin.IsCoinbase(in) {
 			continue
@@ -74,7 +77,7 @@ func (i *indexer) processOutputs(vout []*wire.TxOut, txid string, dbTransactionI
 			return errors.Wrap(err, "failed to get bitcoin address from its scriptPubKey")
 		}
 
-		i.storage.Outputs().Insert(data.Output{
+		err = i.storage.Outputs().Insert(data.Output{
 			Txid: txid,
 			Vout: int(j),
 
@@ -83,6 +86,10 @@ func (i *indexer) processOutputs(vout []*wire.TxOut, txid string, dbTransactionI
 			TransactionID: dbTransactionID,
 			Address:       receiverAddress,
 		})
+
+		if err != nil {
+			return errors.Wrap(err, "failed to insert output into local storage")
+		}
 	}
 
 	return nil
@@ -183,9 +190,6 @@ func (i *indexer) processBlock(blockHash chainhash.Hash) error {
 		Hash:            header.Hash,
 		PreviousBlockID: prevBlockID,
 	})
-	if errors.Is(err, data.ErrAlreadyExists) {
-		return errors.Wrap(err, "block already exists in db")
-	}
 	if err != nil {
 		return errors.Wrap(err, "failed to insert new block into storage")
 	}
@@ -199,6 +203,8 @@ func (i *indexer) processBlock(blockHash chainhash.Hash) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to process transactions")
 	}
+
+	i.currentHash = &blockHash
 
 	return nil
 }

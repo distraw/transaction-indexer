@@ -35,11 +35,10 @@ func (r *rpcNode) SubscribeToBlocks(context context.Context, callback func(newBl
 			return r.poll(callback)
 		},
 		ErrFunc: func(err error) {
-			r.log.WithError(err).Error("rpc poller failed")
-			// select {
-			// case errCh <- err:
-			// default:
-			// }
+			select {
+			case errCh <- err:
+			default:
+			}
 		},
 	})
 	if err != nil {
@@ -54,12 +53,26 @@ func (r *rpcNode) SubscribeToBlocks(context context.Context, callback func(newBl
 	}
 }
 
+func (r *rpcNode) isNewBlock(newBlockHash *chainhash.Hash) bool {
+	if newBlockHash.IsEqual(r.currentBlockHash) {
+		return false
+	}
+
+	if (r.currentBlockHash.IsEqual(nil) || r.currentBlockHash.IsEqual(&chainhash.Hash{})) &&
+		newBlockHash.IsEqual(r.netParams.GenesisHash) {
+		return false
+	}
+
+	return true
+}
+
 func (r *rpcNode) poll(callback func(newBlockHash *chainhash.Hash) error) error {
 	newBlockHash, err := r.client.GetBestBlockHash()
 	if err != nil {
 		return errors.Wrap(err, "failed to get best block hash")
 	}
-	if newBlockHash.IsEqual(r.currentBlockHash) {
+
+	if !r.isNewBlock(newBlockHash) {
 		return nil
 	}
 
@@ -73,21 +86,55 @@ func (r *rpcNode) poll(callback func(newBlockHash *chainhash.Hash) error) error 
 	return nil
 }
 
-func isHeaderMissingOnNode(err error) bool {
-	rpcErr, ok := err.(*btcjson.RPCError)
-	return ok && rpcErr.Code == -5
+func (r *rpcNode) getGenesisHeader() (*btcjson.GetBlockHeaderVerboseResult, error) {
+	genesisHash, err := r.client.GetBlockHash(0)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get hash of genesis block from rpc node")
+	}
+
+	genesisHeader, err := r.client.GetBlockHeaderVerbose(genesisHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get header of genesis block from rpc node")
+	}
+
+	return genesisHeader, nil
+}
+
+func (r *rpcNode) doesHeaderExistOnNode(header *btcjson.GetBlockHeaderVerboseResult) (bool, error) {
+	blockCount, err := r.client.GetBlockCount()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get block count on rpc node")
+	}
+
+	if header.Height > int32(blockCount) {
+		return false, nil
+	}
+
+	competingHeader, err := r.client.GetBlockHash(int64(header.Height))
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get header at the same height")
+	}
+
+	return competingHeader.String() == header.Hash, nil
 }
 
 func (r *rpcNode) findCommonAncestor(locators []*chainhash.Hash) (*btcjson.GetBlockHeaderVerboseResult, error) {
 	var ancestor *btcjson.GetBlockHeaderVerboseResult
 	var err error
-	for i := len(locators) - 1; i >= 0; i-- {
+	for i := 0; i < len(locators); i++ {
 		ancestor, err = r.client.GetBlockHeaderVerbose(locators[i])
-		if isHeaderMissingOnNode(err) {
-			continue
-		}
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get block header from rpc node")
+			return nil, errors.Wrap(err, "failed to get verbose block header from rpc node")
+		}
+
+		exists, err := r.doesHeaderExistOnNode(ancestor)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check if block is missing on node")
+		}
+
+		if !exists {
+			r.log.Infof("header is missing on node %s", locators[i])
+			continue
 		}
 
 		return ancestor, nil
@@ -97,7 +144,7 @@ func (r *rpcNode) findCommonAncestor(locators []*chainhash.Hash) (*btcjson.GetBl
 }
 
 func (r *rpcNode) getStopHeight(stop *chainhash.Hash) (int32, error) {
-	if stop.IsEqual(&chainhash.Hash{}) || stop == nil {
+	if stop.IsEqual(&chainhash.Hash{}) || stop.IsEqual(nil) {
 		bestBlockHash, err := r.client.GetBestBlockHash()
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to get best block hash")
@@ -119,26 +166,37 @@ func (r *rpcNode) getStopHeight(stop *chainhash.Hash) (int32, error) {
 	return header.Height - 1, nil
 }
 
-func (r *rpcNode) GetHeaders(locators []*chainhash.Hash, stop *chainhash.Hash) ([]*wire.BlockHeader, error) {
-	ancestor, err := r.findCommonAncestor(locators)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to find common ancestor on rpc node")
+func (r *rpcNode) getStartHeight(locators []*chainhash.Hash) (int32, error) {
+	// if locator is nil hash, then genesis block should be starting point
+	if locators[0].IsEqual(&chainhash.Hash{}) {
+		return 0, nil
 	}
 
-	targetHeight, err := r.getStopHeight(stop)
+	ancestor, err := r.findCommonAncestor(locators)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to find common ancestor on rpc node")
+	}
+
+	return ancestor.Height + 1, nil
+}
+
+func (r *rpcNode) GetHeaders(locators []*chainhash.Hash, stop *chainhash.Hash) ([]*wire.BlockHeader, error) {
+	startHeight, err := r.getStartHeight(locators)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get starting height")
+	}
+	r.log.Infof("starting height is %d", startHeight)
+
+	stopHeight, err := r.getStopHeight(stop)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get stophash header from rpc node")
 	}
+	r.log.Infof("stop height is %d", stopHeight)
 
 	var headers []*wire.BlockHeader
 
-	startHeight := ancestor.Height + 1
-	if ancestor.Hash == r.netParams.GenesisHash.String() {
-		startHeight = 0
-	}
-
 	const maxHeadersPerRequest int = 2000
-	for i, height := 0, startHeight; i < maxHeadersPerRequest && height <= targetHeight; i, height = i+1, height+1 {
+	for i, height := 0, startHeight; i < maxHeadersPerRequest && height <= stopHeight; i, height = i+1, height+1 {
 		hash, err := r.client.GetBlockHash(int64(height))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get block hash by its height from rpc node")

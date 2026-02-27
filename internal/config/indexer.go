@@ -62,9 +62,9 @@ func parseNetParams(params string) chaincfg.Params {
 	panic("invalid network params were providen: must be either mainnet, testnet3, testnet4 or regtest")
 }
 
-func parseInitialHash(hash string, params chaincfg.Params) *chainhash.Hash {
+func parseInitialHash(hash string) *chainhash.Hash {
 	if hash == "genesis" || len(hash) == 0 {
-		return params.GenesisHash
+		return &chainhash.Hash{}
 	}
 
 	parsedHash, err := chainhash.NewHashFromStr(hash)
@@ -93,7 +93,7 @@ func (c *config) IndexerInfo() IndexerInfo {
 		indexerInfo := indexerInfo{
 			PollFrequency:    parsePollFrequency(config.PollFrequencySeconds),
 			Net:              parseNetParams(config.Net),
-			InitialBlockHash: parseInitialHash(config.InitialBlockHash, parseNetParams(config.Net)),
+			InitialBlockHash: parseInitialHash(config.InitialBlockHash),
 		}
 
 		return &indexerInfo

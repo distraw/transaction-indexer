@@ -59,7 +59,7 @@ func (i *indexer) Run() error {
 	}
 
 	i.started.Store(true)
-	i.log.Infof("Starting from block %s", i.initialBlockHash)
+	i.log.Infof("Starting from block \"%s\"", i.initialBlockHash)
 
 	err := i.catchUp(i.initialBlockHash)
 	if err != nil {
