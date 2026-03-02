@@ -7,7 +7,6 @@ import (
 	"github.com/distraw/transaction-indexer/internal/core/api/ctx"
 )
 
-// TODO: ping DB
 func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)

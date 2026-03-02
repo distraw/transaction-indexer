@@ -39,7 +39,7 @@ func (i *indexer) synchronizeChain() error {
 	}
 	i.log.Infof("locators are %s, %s", locators[0], locators[1])
 
-	headers, err := i.node.GetHeaders(locators, nil)
+	headers, err := i.node.GetHeaders(locators, chainhash.Hash{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get headers from rpc node")
 	}

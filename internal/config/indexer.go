@@ -1,10 +1,11 @@
 package config
 
 import (
-	"time"
+	"errors"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/distraw/transaction-indexer/internal/core/node"
 	"gitlab.com/distributed_lab/figure"
 	"gitlab.com/distributed_lab/kit/kv"
 )
@@ -14,19 +15,15 @@ const (
 )
 
 type IndexerInfo interface {
-	GetPollFrequency() time.Duration
 	GetInitialBlockHash() *chainhash.Hash
 	GetNet() chaincfg.Params
+	GetMode() node.Mode
 }
 
 type indexerInfo struct {
-	PollFrequency    time.Duration
 	InitialBlockHash *chainhash.Hash
 	Net              chaincfg.Params
-}
-
-func (i *indexerInfo) GetPollFrequency() time.Duration {
-	return i.PollFrequency
+	Mode             node.Mode
 }
 
 func (i *indexerInfo) GetInitialBlockHash() *chainhash.Hash {
@@ -37,14 +34,8 @@ func (i *indexerInfo) GetNet() chaincfg.Params {
 	return i.Net
 }
 
-func parsePollFrequency(seconds int) time.Duration {
-	const day int = 60 * 60 * 24
-
-	if seconds < 1 || seconds > day {
-		panic("poll frequency must be between 1 second and 24 hours (86400 seconds)")
-	}
-
-	return time.Duration(seconds) * time.Second
+func (i *indexerInfo) GetMode() node.Mode {
+	return i.Mode
 }
 
 func parseNetParams(params string) chaincfg.Params {
@@ -75,12 +66,23 @@ func parseInitialHash(hash string) *chainhash.Hash {
 	return parsedHash
 }
 
+func parseMode(mode string) node.Mode {
+	switch mode {
+	case "rpc":
+		return node.RPC
+	case "p2p":
+		return node.P2P
+	}
+
+	panic(errors.New("node mode was not recognized: " + mode))
+}
+
 func (c *config) IndexerInfo() IndexerInfo {
 	return c.indexerInfo.Do(func() interface{} {
 		var config struct {
-			PollFrequencySeconds int    `fig:"poll_frequency_seconds"`
-			InitialBlockHash     string `fig:"initial_block_hash"`
-			Net                  string `fig:"net"`
+			InitialBlockHash string `fig:"initial_block_hash,required"`
+			Net              string `fig:"net,required"`
+			Mode             string `fig:"mode,required"`
 		}
 
 		err := figure.Out(&config).
@@ -91,9 +93,9 @@ func (c *config) IndexerInfo() IndexerInfo {
 		}
 
 		indexerInfo := indexerInfo{
-			PollFrequency:    parsePollFrequency(config.PollFrequencySeconds),
-			Net:              parseNetParams(config.Net),
 			InitialBlockHash: parseInitialHash(config.InitialBlockHash),
+			Net:              parseNetParams(config.Net),
+			Mode:             parseMode(config.Mode),
 		}
 
 		return &indexerInfo

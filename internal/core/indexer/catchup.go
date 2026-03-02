@@ -8,7 +8,7 @@ import (
 func (i *indexer) catchUp(initialHash *chainhash.Hash) error {
 	i.catchedUp.Store(false)
 
-	headers, err := i.node.GetHeaders([]*chainhash.Hash{initialHash}, nil)
+	headers, err := i.node.GetHeaders([]*chainhash.Hash{initialHash}, chainhash.Hash{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get headers from initial hash to the tip")
 	}

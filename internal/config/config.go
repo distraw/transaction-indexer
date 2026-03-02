@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/distraw/transaction-indexer/internal/core/node"
 	"gitlab.com/distributed_lab/kit/comfig"
 	"gitlab.com/distributed_lab/kit/kv"
 	"gitlab.com/distributed_lab/kit/pgdb"
@@ -12,7 +12,9 @@ type Config interface {
 	comfig.Listenerer
 	pgdb.Databaser
 
-	RPCClient() *rpcclient.Client
+	RPCNode() node.Node
+	P2PNode() node.Node
+
 	IndexerInfo() IndexerInfo
 }
 
@@ -21,7 +23,9 @@ type config struct {
 	comfig.Listenerer
 	pgdb.Databaser
 
-	rpcclient   comfig.Once
+	rpcNode comfig.Once
+	p2pNode comfig.Once
+
 	indexerInfo comfig.Once
 
 	getter kv.Getter

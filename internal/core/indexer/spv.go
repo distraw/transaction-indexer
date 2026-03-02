@@ -69,7 +69,7 @@ func (i *indexer) validatePreviousHash(header *wire.BlockHeader) error {
 		return errors.Wrap(err, "failed to check block existence with given hash in db")
 	}
 	if !exists {
-		return errors.New("previous hash is not tracked in local best chain")
+		return errors.New("previous hash is" + header.PrevBlock.String() + "not tracked in local best chain")
 	}
 
 	return nil

@@ -7,10 +7,10 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/distraw/transaction-indexer/internal/config"
 	"github.com/distraw/transaction-indexer/internal/core/node"
 	"github.com/distraw/transaction-indexer/internal/data"
+	"github.com/distraw/transaction-indexer/internal/data/pg"
 	"github.com/pkg/errors"
 	"gitlab.com/distributed_lab/logan/v3"
 	"golang.org/x/sync/errgroup"
@@ -41,7 +41,6 @@ type indexer struct {
 	started   atomic.Bool
 	catchedUp atomic.Bool
 
-	pollFrequency    time.Duration
 	initialBlockHash *chainhash.Hash
 	netParams        chaincfg.Params
 
@@ -57,6 +56,18 @@ func (i *indexer) Run() error {
 
 	i.started.Store(true)
 	i.log.Infof("Starting from block \"%s\"", i.initialBlockHash)
+
+	g, ctx := errgroup.WithContext(i.context)
+
+	g.Go(func() error {
+		err := i.node.Subscribe(ctx, i.initialBlockHash, i.netParams, i.poll)
+		if err != nil {
+			return errors.Wrap(err, "failed to subscribe to blocks")
+		}
+		return nil
+	})
+
+	time.Sleep(time.Second)
 
 	err := i.catchUp(i.initialBlockHash)
 	if err != nil {
@@ -76,15 +87,7 @@ func (i *indexer) Run() error {
 		}
 	}
 
-	g, ctx := errgroup.WithContext(i.context)
-
-	g.Go(func() error {
-		err = i.node.SubscribeToBlocks(ctx, i.poll)
-		if err != nil {
-			return errors.Wrap(err, "failed to subscribe to blocks")
-		}
-		return nil
-	})
+	i.node.ListenEvents()
 
 	return g.Wait()
 }
@@ -106,19 +109,24 @@ func (i *indexer) Start() error {
 	return nil
 }
 
-func New(context context.Context, storage data.Storage, log *logan.Entry,
-	rpc *rpcclient.Client, info config.IndexerInfo) Indexer {
+func New(context context.Context, cfg config.Config) Indexer {
+	var remoteNode node.Node
+	switch cfg.IndexerInfo().GetMode() {
+	case node.RPC:
+		remoteNode = cfg.RPCNode()
+	case node.P2P:
+		remoteNode = cfg.P2PNode()
+	}
+
 	return &indexer{
 		context: context,
-		storage: storage.New(),
-		log:     log,
+		storage: pg.NewStorage(cfg.DB()),
+		log:     cfg.Log(),
 
-		// TODO
-		node: node.NewRPC(rpc, info.GetPollFrequency(), info.GetNet(), info.GetInitialBlockHash()),
+		node: remoteNode,
 
-		pollFrequency:    info.GetPollFrequency(),
-		initialBlockHash: info.GetInitialBlockHash(),
-		netParams:        info.GetNet(),
+		initialBlockHash: cfg.IndexerInfo().GetInitialBlockHash(),
+		netParams:        cfg.IndexerInfo().GetNet(),
 
 		start: make(chan struct{}),
 	}

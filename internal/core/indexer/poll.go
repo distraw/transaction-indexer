@@ -12,6 +12,14 @@ func (i *indexer) poll(newHash *chainhash.Hash) error {
 		return nil
 	}
 
+	exists, err := i.storage.Blocks().Exists(newHash.String())
+	if err != nil {
+		return errors.Wrap(err, "failed to check block existence on local chain")
+	}
+	if exists {
+		return nil
+	}
+
 	newBlock, err := i.node.GetBlock(newHash)
 	if err != nil {
 		return errors.Wrap(err, "failed to get verbose block header")

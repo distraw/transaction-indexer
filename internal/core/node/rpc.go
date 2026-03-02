@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/btcsuite/btcd/btcjson"
@@ -21,15 +22,24 @@ type rpcNode struct {
 	netParams     chaincfg.Params
 
 	currentBlockHash *chainhash.Hash
+
+	listenEvents atomic.Bool
 }
 
-func (r *rpcNode) SubscribeToBlocks(context context.Context, callback func(newBlockHash *chainhash.Hash) error) error {
+func (r *rpcNode) Subscribe(context context.Context, from *chainhash.Hash, netParams chaincfg.Params, callback func(newBlockHash *chainhash.Hash) error) error {
+	r.netParams = netParams
+	r.currentBlockHash = from
+
 	errCh := make(chan error, 1)
 
 	defer r.scheduler.Stop()
 	_, err := r.scheduler.Add(&tasks.Task{
 		Interval: r.pollFrequency,
 		TaskFunc: func() error {
+			if !r.listenEvents.Load() {
+				return nil
+			}
+
 			return r.poll(callback)
 		},
 		ErrFunc: func(err error) {
@@ -49,6 +59,10 @@ func (r *rpcNode) SubscribeToBlocks(context context.Context, callback func(newBl
 	case err := <-errCh:
 		return errors.Wrap(err, "rpc poller failed")
 	}
+}
+
+func (r *rpcNode) ListenEvents() {
+	r.listenEvents.Store(true)
 }
 
 func (r *rpcNode) isNewBlock(newBlockHash *chainhash.Hash) bool {
@@ -126,8 +140,8 @@ func (r *rpcNode) findCommonAncestor(locators []*chainhash.Hash) (*btcjson.GetBl
 	return nil, ErrNoCommonAncestor
 }
 
-func (r *rpcNode) getStopHeight(stop *chainhash.Hash) (int32, error) {
-	if stop.IsEqual(&chainhash.Hash{}) || stop.IsEqual(nil) {
+func (r *rpcNode) getStopHeight(stop chainhash.Hash) (int32, error) {
+	if stop.IsEqual(&chainhash.Hash{}) {
 		bestBlockHash, err := r.client.GetBestBlockHash()
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to get best block hash")
@@ -141,7 +155,7 @@ func (r *rpcNode) getStopHeight(stop *chainhash.Hash) (int32, error) {
 		return header.Height, nil
 	}
 
-	header, err := r.client.GetBlockHeaderVerbose(stop)
+	header, err := r.client.GetBlockHeaderVerbose(&stop)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get block header from rpc node")
 	}
@@ -163,7 +177,7 @@ func (r *rpcNode) getStartHeight(locators []*chainhash.Hash) (int32, error) {
 	return ancestor.Height + 1, nil
 }
 
-func (r *rpcNode) GetHeaders(locators []*chainhash.Hash, stop *chainhash.Hash) ([]*wire.BlockHeader, error) {
+func (r *rpcNode) GetHeaders(locators []*chainhash.Hash, stop chainhash.Hash) ([]*wire.BlockHeader, error) {
 	startHeight, err := r.getStartHeight(locators)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get starting height")
@@ -203,13 +217,10 @@ func (r *rpcNode) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
 	return block, nil
 }
 
-func NewRPC(rpc *rpcclient.Client, pollFrequency time.Duration,
-	netParams chaincfg.Params, initialBlockHash *chainhash.Hash) Node {
+func NewRPC(rpc *rpcclient.Client, pollFrequency time.Duration) Node {
 	return &rpcNode{
-		client:           rpc,
-		scheduler:        tasks.New(),
-		pollFrequency:    pollFrequency,
-		netParams:        netParams,
-		currentBlockHash: initialBlockHash,
+		client:        rpc,
+		scheduler:     tasks.New(),
+		pollFrequency: pollFrequency,
 	}
 }
