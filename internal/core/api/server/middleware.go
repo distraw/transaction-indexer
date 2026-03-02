@@ -15,7 +15,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 			auth := r.Header.Get("Authorization")
 			if !strings.HasPrefix(auth, "Bearer ") {
 				http.Error(w,
-					"400 bad request (invalid authorization header format)",
+					"invalid authorization header format",
 					http.StatusBadRequest,
 				)
 				return
@@ -26,24 +26,24 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 
 			jwtClaims, err := token.Parse(auth, ctx.JWTSecret(c))
 			if err != nil {
-				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
+				http.Error(w, "", http.StatusUnauthorized)
 				return
 			}
 
 			if len(jwtClaims.Subject) == 0 ||
 				jwtClaims.Issuer != token.Issuer {
-				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
+				http.Error(w, "", http.StatusUnauthorized)
 				return
 			}
 
 			user, err := ctx.Storage(c).Users().Get(jwtClaims.Subject)
 			if err == data.ErrNotFound {
-				http.Error(w, "401 unauthorized", http.StatusUnauthorized)
+				http.Error(w, "", http.StatusUnauthorized)
 				return
 			}
 			if err != nil {
 				ctx.Logger(c).WithError(err).Error("failed to check user existence in db")
-				http.Error(w, "500 internal server error", http.StatusInternalServerError)
+				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}
 

@@ -23,7 +23,7 @@ CREATE TABLE users_addresses (
 CREATE TABLE blocks (
     id SERIAL PRIMARY KEY,
     hash TEXT UNIQUE NOT NULL,
-    height BIGINT NOT NULL UNIQUE
+    previous_block_id INT REFERENCES blocks(id) ON DELETE CASCADE NULL
 );
 
 CREATE TABLE transactions (
@@ -34,7 +34,7 @@ CREATE TABLE transactions (
     timestamp TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE outs (
+CREATE TABLE outputs (
     id SERIAL PRIMARY KEY,
 
     txid TEXT NOT NULL,
@@ -43,13 +43,13 @@ CREATE TABLE outs (
 
     value DECIMAL NOT NULL,
 
-    spent_in_block_height INT,
+    spent_in_transaction_id INT REFERENCES transactions(id) ON DELETE SET NULL,
 
     address TEXT NOT NULL,
     transaction_id INT REFERENCES transactions(id) ON DELETE CASCADE
 );
 
-CREATE TABLE ins (
+CREATE TABLE inputs (
     id SERIAL PRIMARY KEY,
 
     from_address TEXT NOT NULL,
@@ -65,7 +65,7 @@ DROP USER healthchecker;
 DROP TABLE users_addresses;
 DROP TABLE users;
 DROP TABLE transactions;
-DROP TABLE ins;
-DROP TABLE outs;
+DROP TABLE inputs;
+DROP TABLE outputs;
 DROP TABLE addresses;
 DROP TABLE blocks;

@@ -38,8 +38,8 @@ func GetTXs(w http.ResponseWriter, r *http.Request) {
 
 	var responseBody = make([]struct {
 		Tx      data.Transaction `json:"transaction"`
-		Inputs  []data.In        `json:"inputs"`
-		Outputs []data.Out       `json:"outputs"`
+		Inputs  []data.Input     `json:"inputs"`
+		Outputs []data.Output    `json:"outputs"`
 	}, len(txs))
 
 	for i, tx := range txs {

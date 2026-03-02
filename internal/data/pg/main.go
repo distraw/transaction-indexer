@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
@@ -17,8 +18,8 @@ type storage struct {
 	usersAddresses data.UsersAddressesQ
 	addresses      data.AddressesQ
 	transactions   data.TransactionsQ
-	outs           data.OutsQ
-	ins            data.InsQ
+	outputs        data.OutputsQ
+	inputs         data.InputsQ
 
 	blocks data.BlocksQ
 }
@@ -43,12 +44,12 @@ func (s *storage) Transactions() data.TransactionsQ {
 	return s.transactions
 }
 
-func (s *storage) Outs() data.OutsQ {
-	return s.outs
+func (s *storage) Outputs() data.OutputsQ {
+	return s.outputs
 }
 
-func (s *storage) Ins() data.InsQ {
-	return s.ins
+func (s *storage) Inputs() data.InputsQ {
+	return s.inputs
 }
 
 func (s *storage) AddAddress(userID int, address data.Address) error {
@@ -126,10 +127,10 @@ func (s *storage) GetBalance(addr string) (*float64, error) {
 	FROM %s
 	JOIN %s ON %s.%s = %s.%s
 	WHERE %s.%s = $1 AND %s IS NULL`,
-		outsTable, outsValue,
-		outsTable,
-		addressesTable, addressesTable, addressesAddr, outsTable, outsAddress,
-		addressesTable, addressesAddr, outsSpentInBlockHeight,
+		outputsTable, outputsValue,
+		outputsTable,
+		addressesTable, addressesTable, addressesAddr, outputsTable, outputsAddress,
+		addressesTable, addressesAddr, outputsSpentInTransactionID,
 	)
 
 	var balance float64
@@ -167,15 +168,15 @@ func (s *storage) GetTxs(addr string) ([]data.Transaction, error) {
 	received := squirrel.
 		Select(fmt.Sprintf("%s.%s", transactionsTable, transactionsTxid), transactionsLocktime, transactionsTimestamp).
 		From(addressesTable).
-		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", outsTable, addressesTable, addressesAddr, outsTable, outsAddress)).
-		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", transactionsTable, outsTable, outsTransactionID, transactionsTable, "id")).
+		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", outputsTable, addressesTable, addressesAddr, outputsTable, outputsAddress)).
+		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", transactionsTable, outputsTable, outputsTransactionID, transactionsTable, "id")).
 		Where(squirrel.Eq{addressesAddr: addr})
 
 	spent := squirrel.
 		Select(fmt.Sprintf("%s.%s", transactionsTable, transactionsTxid), transactionsLocktime, transactionsTimestamp).
 		From(addressesTable).
-		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", insTable, addressesTable, addressesAddr, insTable, insFromAddress)).
-		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", transactionsTable, insTable, insTransactionID, transactionsTable, "id")).
+		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", inputsTable, addressesTable, addressesAddr, inputsTable, inputsFromAddress)).
+		Join(fmt.Sprintf("%s ON %s.%s = %s.%s", transactionsTable, inputsTable, inputsTransactionID, transactionsTable, "id")).
 		Where(squirrel.Eq{addressesAddr: addr})
 
 	query, args, err := Union(received, spent)
@@ -192,77 +193,125 @@ func (s *storage) GetTxs(addr string) ([]data.Transaction, error) {
 	return txs, nil
 }
 
-func (s *storage) GetUtxos(addr string) ([]data.Out, error) {
-	query := squirrel.Select(outsTxid, outsVout, outsValue, outsSpentInBlockHeight, outsAddress, outsTransactionID).
-		From(outsTable).
+func (s *storage) GetUtxos(addr string) ([]data.Output, error) {
+	query := squirrel.Select(outputsTxid, outputsVout, outputsValue, outputsSpentInTransactionID, outputsAddress, outputsTransactionID).
+		From(outputsTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
 				addressesTable,
-				addressesTable, addressesAddr, outsTable, outsAddress,
+				addressesTable, addressesAddr, outputsTable, outputsAddress,
 			),
 		).
 		Where(
 			squirrel.Eq{
 				fmt.Sprintf("%s.%s", addressesTable, addressesAddr): addr,
-				outsSpentInBlockHeight:                              nil,
+				outputsSpentInTransactionID:                         nil,
 			},
 		)
 
-	var outs []data.Out
-	err := s.db.Select(&outs, query)
+	var outputs []data.Output
+	err := s.db.Select(&outputs, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to select from utxos table")
 	}
 
-	return outs, nil
+	return outputs, nil
 }
 
-func (s *storage) GetOutputsInTransaction(txid string) ([]data.Out, error) {
-	query := squirrel.Select(fmt.Sprintf("%s.%s", outsTable, outsTxid), outsVout, outsValue, outsSpentInBlockHeight, outsAddress, outsTransactionID).
-		From(outsTable).
+func (s *storage) GetBlockOnDepth(depth int) (*data.Block, error) {
+	current, err := s.blocks.GetTip()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tip of local chain")
+	}
+
+	for i := 0; i < depth; i++ {
+		if current.PreviousBlockID == nil {
+			return current, nil
+		}
+
+		current, err = s.blocks.GetByID(*current.PreviousBlockID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get block by id in local chain")
+		}
+	}
+
+	return current, nil
+}
+
+func (s *storage) GetOutputsInTransaction(txid string) ([]data.Output, error) {
+	query := squirrel.Select(fmt.Sprintf("%s.%s", outputsTable, outputsTxid), outputsVout, outputsValue, outputsSpentInTransactionID, outputsAddress, outputsTransactionID).
+		From(outputsTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
 				transactionsTable,
-				transactionsTable, transactionsTxid, outsTable, outsTxid,
+				transactionsTable, transactionsTxid, outputsTable, outputsTxid,
 			),
 		).
 		Where(
 			squirrel.Eq{fmt.Sprintf("%s.%s", transactionsTable, transactionsTxid): txid},
 		)
 
-	var outs []data.Out
-	err := s.db.Select(&outs, query)
+	var outputs []data.Output
+	err := s.db.Select(&outputs, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to select from outs table")
 	}
 
-	return outs, nil
+	return outputs, nil
 }
 
-func (s *storage) GetInputsInTransaction(txid string) ([]data.In, error) {
-	query := squirrel.Select(insFromAddress, insValue, insTransactionID, insVin).
-		From(insTable).
+func (s *storage) GetInputsInTransaction(txid string) ([]data.Input, error) {
+	query := squirrel.Select(inputsFromAddress, inputsValue, inputsTransactionID, inputsVin).
+		From(inputsTable).
 		JoinClause(
 			fmt.Sprintf("JOIN %s ON %s.%s = %s.%s",
 				transactionsTable,
-				transactionsTable, "id", insTable, insTransactionID,
+				transactionsTable, "id", inputsTable, inputsTransactionID,
 			),
 		).
 		Where(
 			squirrel.Eq{fmt.Sprintf("%s.%s", transactionsTable, transactionsTxid): txid},
 		)
 
-	var ins []data.In
-	err := s.db.Select(&ins, query)
+	var inputs []data.Input
+	err := s.db.Select(&inputs, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to select from ins table")
 	}
 
-	return ins, nil
+	return inputs, nil
 }
 
 func (s *storage) New() data.Storage {
 	return NewStorage(s.db.Clone())
+}
+
+func (s *storage) DeleteBlocksAfter(afterHash string) error {
+	getIDQuery := squirrel.
+		Select("id").
+		From(blocksTable).
+		Where(squirrel.Eq{
+			blocksHash: afterHash,
+		})
+
+	var block data.Block
+	err := s.db.Get(&block, getIDQuery)
+	if errors.Is(err, sql.ErrNoRows) {
+		return data.ErrNotFound
+	}
+
+	deleteQuery := squirrel.
+		Delete(blocksTable).
+		Where(squirrel.Eq{
+			blocksPreviousBlockID: block.ID,
+		})
+
+	err = s.db.Exec(deleteQuery)
+	if err != nil {
+		return errors.Wrap(err, "failed to exec db query")
+	}
+
+	return nil
 }
 
 func NewStorage(db *pgdb.DB) data.Storage {
@@ -273,8 +322,8 @@ func NewStorage(db *pgdb.DB) data.Storage {
 		usersAddresses: NewUsersAddressesQ(db),
 		transactions:   NewTransactionsQ(db),
 		addresses:      NewAddressesQ(db),
-		outs:           NewOutsQ(db),
-		ins:            NewInsQ(db),
+		outputs:        NewOutputsQ(db),
+		inputs:         NewInsQ(db),
 
 		blocks: NewBlocksQ(db),
 	}

@@ -1,80 +1,66 @@
 package indexer
 
 import (
+	"encoding/hex"
 	"time"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/distraw/transaction-indexer/internal/core/bitcoin"
 	"github.com/distraw/transaction-indexer/internal/data"
 	"github.com/pkg/errors"
 )
 
-var (
-	ErrUnusualScript = errors.New("non-usual script detected")
-)
-
-func (i *indexer) getAddressFromScriptPubKey(scriptPubKeyHex string) (string, error) {
-	address, err := bitcoin.ToAddress(scriptPubKeyHex, &i.netParams)
-	if errors.Is(err, bitcoin.ErrNoAddress) {
-		return "not_found", nil
-	}
-	if errors.Is(err, bitcoin.ErrMultipleAddresses) {
-		return "multiple", nil
-	}
-	if err != nil {
-		return "", errors.Wrap(err, "failed to convert scriptPubKey (hex format) to bitcoin address")
-	}
-
-	return address, nil
-}
-
-func (i *indexer) getInputInfo(in btcjson.Vin) (sender string, value float64, e error) {
-	if in.IsCoinBase() {
+// getInputInfo links given input to its output using local utxo set.
+//
+// If no output were found, getInputInfo returns sender="unknown", value=-1, e=nil,
+// since it is expected behaviour when indexer starts not from genesis block
+// (output from block before indexer started may have been spent)
+func (i *indexer) getInputInfo(input *wire.TxIn) (sender string, value float64, e error) {
+	if bitcoin.IsCoinbase(input) {
 		return "coinbase", 0, nil
 	}
 
-	outTxHash, err := chainhash.NewHashFromStr(in.Txid)
+	output, err := i.storage.Outputs().Get(input.PreviousOutPoint.Hash.String(), input.PreviousOutPoint.Index)
+	if errors.Is(err, data.ErrNotFound) {
+		return "unknown", -1, nil
+	}
 	if err != nil {
-		return "", 0, errors.Wrap(err, "failed to get hash from string in.Txid ")
+		return "", 0, errors.Wrap(err, "failed to get output from local storage")
 	}
 
-	outTx, err := i.rpc.GetRawTransactionVerbose(outTxHash)
-	if err != nil {
-		return "", 0, errors.Wrapf(err, "failed to get transaction %s", in.Txid)
-	}
-
-	fromAddress, err := i.getAddressFromScriptPubKey(outTx.Vout[in.Vout].ScriptPubKey.Hex)
-	if err != nil {
-		return "", 0, errors.Wrap(err, "failed to decode scriptPubKey from hex to bitcoin address")
-	}
-
-	return fromAddress, outTx.Vout[in.Vout].Value, nil
+	return output.Address, output.Value, nil
 }
 
-func (i *indexer) processInputs(vin []btcjson.Vin, dbTransactionID int, blockHeight int32) error {
+func (i *indexer) processInputs(vin []*wire.TxIn, dbTransactionID int) error {
 	for j, in := range vin {
 		senderAddress, value, err := i.getInputInfo(in)
 		if err != nil {
 			return errors.Wrap(err, "failed to get sender address for input")
 		}
 
-		i.storage.Ins().Insert(data.In{
+		err = i.storage.Inputs().Insert(data.Input{
 			FromAddress:   senderAddress,
 			Value:         value,
 			TransactionID: dbTransactionID,
 			Vin:           j,
 		})
-
-		exists, err := i.storage.Outs().Exists(in.Txid, in.Vout)
 		if err != nil {
-			return errors.Wrap(err, "failed to check utxo existence in db")
+			return errors.Wrap(err, "failed to insert input into local storage")
+		}
+
+		if bitcoin.IsCoinbase(in) {
+			continue
+		}
+
+		exists, err := i.storage.Outputs().Exists(in.PreviousOutPoint.Hash.String(), in.PreviousOutPoint.Index)
+		if err != nil {
+			return errors.Wrap(err, "failed to check output existence in db")
 		}
 		if !exists {
 			continue
 		}
 
-		err = i.storage.Outs().MarkSpent(in.Txid, int(in.Vout), blockHeight)
+		err = i.storage.Outputs().MarkSpent(in.PreviousOutPoint.Hash.String(), in.PreviousOutPoint.Index, int32(dbTransactionID))
 		if err != nil {
 			return errors.Wrap(err, "failed to mark outputs spent in db")
 		}
@@ -83,22 +69,26 @@ func (i *indexer) processInputs(vin []btcjson.Vin, dbTransactionID int, blockHei
 	return nil
 }
 
-func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransactionID int) error {
-	for _, out := range vout {
-		receiverAddress, err := i.getAddressFromScriptPubKey(out.ScriptPubKey.Hex)
+func (i *indexer) processOutputs(vout []*wire.TxOut, txid string, dbTransactionID int) error {
+	for j, out := range vout {
+		receiverAddress, err := i.getAddressFromScriptPubKey(out.PkScript)
 		if err != nil {
 			return errors.Wrap(err, "failed to get bitcoin address from its scriptPubKey")
 		}
 
-		i.storage.Outs().Insert(data.Out{
+		err = i.storage.Outputs().Insert(data.Output{
 			Txid: txid,
-			Vout: int(out.N),
+			Vout: int(j),
 
-			Value: out.Value,
+			Value: bitcoin.SatoshisToBTC(out.Value),
 
 			TransactionID: dbTransactionID,
 			Address:       receiverAddress,
 		})
+
+		if err != nil {
+			return errors.Wrap(err, "failed to insert output into local storage")
+		}
 	}
 
 	return nil
@@ -106,11 +96,9 @@ func (i *indexer) processOutputs(vout []btcjson.Vout, txid string, dbTransaction
 
 // checkTxForTrackedAddrs checks if providen transaction contains at least one
 // tracked address
-func (i *indexer) checkTxForTrackedAddrs(tx btcjson.TxRawResult) (bool, error) {
-	for _, out := range tx.Vout {
-		scriptPubKey := out.ScriptPubKey.Hex
-
-		exists, err := i.storage.Addresses().ExistsByScriptPubKey(scriptPubKey)
+func (i *indexer) checkTxForTrackedAddrs(tx *wire.MsgTx) (bool, error) {
+	for _, out := range tx.TxOut {
+		exists, err := i.storage.Addresses().ExistsByScriptPubKey(hex.EncodeToString(out.PkScript))
 		if err != nil {
 			return false, errors.Wrap(err, "failed to fetch address from storage")
 		}
@@ -121,8 +109,12 @@ func (i *indexer) checkTxForTrackedAddrs(tx btcjson.TxRawResult) (bool, error) {
 		return true, nil
 	}
 
-	for _, in := range tx.Vin {
-		exists, err := i.storage.Outs().Exists(in.Txid, in.Vout)
+	for _, in := range tx.TxIn {
+		if bitcoin.IsCoinbase(in) {
+			continue
+		}
+
+		exists, err := i.storage.Outputs().Exists(in.PreviousOutPoint.Hash.String(), in.PreviousOutPoint.Index)
 		if err != nil {
 			return false, errors.Wrap(err, "failed to check utxo existence in db")
 		}
@@ -136,16 +128,23 @@ func (i *indexer) checkTxForTrackedAddrs(tx btcjson.TxRawResult) (bool, error) {
 	return false, nil
 }
 
-func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, dbBlockID int) error {
-	for _, tx := range block.Tx {
+func (i *indexer) processTransactions(block *wire.MsgBlock, timestamp int64, dbBlockID int) error {
+	for _, tx := range block.Transactions {
 		dbTransactionID, err := i.storage.Transactions().Insert(data.Transaction{
-			Txid:      tx.Txid,
+			Txid:      tx.TxID(),
 			BlockID:   dbBlockID,
 			Locktime:  tx.LockTime,
-			Timestamp: time.Unix(tx.Time, 0).UTC(),
+			Timestamp: time.Unix(timestamp, 0).UTC(),
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to insert new transaction into db")
+		}
+
+		// Always process outputs and save them in db since they are
+		// needed to maintain local utxo set
+		err = i.processOutputs(tx.TxOut, tx.TxID(), *dbTransactionID)
+		if err != nil {
+			return errors.Wrap(err, "failed to process transaction outputs")
 		}
 
 		containsTrackedAddrs, err := i.checkTxForTrackedAddrs(tx)
@@ -156,61 +155,46 @@ func (i *indexer) processTransactions(block *btcjson.GetBlockVerboseTxResult, db
 			continue
 		}
 
-		err = i.processInputs(tx.Vin, *dbTransactionID, int32(block.Height))
+		err = i.processInputs(tx.TxIn, *dbTransactionID)
 		if err != nil {
 			return errors.Wrap(err, "failed to process transaction inputs")
-		}
-
-		err = i.processOutputs(tx.Vout, tx.Txid, *dbTransactionID)
-		if err != nil {
-			return errors.Wrap(err, "failed to process transaction outputs")
 		}
 	}
 
 	return nil
 }
 
-func (i *indexer) processBlock(blockHash *chainhash.Hash) error {
-	header, err := i.rpc.GetBlockHeaderVerbose(blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get verbose block header from rpc client")
-	}
-
-	err = i.validateBlockHeader(header)
+func (i *indexer) processBlock(block *wire.MsgBlock) error {
+	err := i.validateBlockHeader(&block.Header)
 	if err != nil {
 		return errors.Wrap(err, "invalid block header")
 	}
 
-	dbBlockID, err := i.storage.Blocks().Insert(data.Block{
-		Hash:   header.Hash,
-		Height: header.Height,
-	})
-	if errors.Is(err, data.ErrAlreadyExists) {
-		return errors.Wrap(err, "block already exists in db")
+	var prevBlockID *int32
+	switch prevBlock, err := i.storage.Blocks().Get(block.Header.PrevBlock.String()); err {
+	case nil:
+		prevBlockID = &prevBlock.ID
+	case data.ErrNotFound:
+		prevBlockID = nil
+	default:
+		return errors.Wrap(err, "failed to get previous block from storage")
 	}
+
+	dbBlockID, err := i.storage.Blocks().Insert(data.Block{
+		Hash:            block.BlockHash().String(),
+		PreviousBlockID: prevBlockID,
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to insert new block into storage")
 	}
 
-	containsTrackedAddresses, err := i.filterBlock(blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to check block filter")
-	}
-	// block filter shows no presence of tracked addresses in txs
-	// => further block processing is redundant
-	if !containsTrackedAddresses {
-		return nil
-	}
-
-	block, err := i.rpc.GetBlockVerboseTx(blockHash)
-	if err != nil {
-		return errors.Wrap(err, "failed to get verbose tx block from rpc client")
-	}
-
-	err = i.processTransactions(block, *dbBlockID)
+	err = i.processTransactions(block, block.Header.Timestamp.Unix(), *dbBlockID)
 	if err != nil {
 		return errors.Wrap(err, "failed to process transactions")
 	}
+
+	newCurrentHash := block.BlockHash()
+	i.currentHash = &newCurrentHash
 
 	return nil
 }

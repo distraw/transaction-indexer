@@ -6,8 +6,8 @@ type Storage interface {
 	Addresses() AddressesQ
 	Transactions() TransactionsQ
 	Blocks() BlocksQ
-	Outs() OutsQ
-	Ins() InsQ
+	Outputs() OutputsQ
+	Inputs() InputsQ
 
 	AddAddress(userID int, address Address) (err error)
 	GetAddresses(userID int) ([]Address, error)
@@ -15,10 +15,17 @@ type Storage interface {
 
 	GetBalance(addr string) (*float64, error)
 	GetTxs(addr string) ([]Transaction, error)
-	GetUtxos(addr string) ([]Out, error)
+	GetUtxos(addr string) ([]Output, error)
 
-	GetOutputsInTransaction(txid string) ([]Out, error)
-	GetInputsInTransaction(txid string) ([]In, error)
+	// GetBlockOnDepth returns block on given depth in storage
+	//
+	// If local chain is shorter than depth, first block in chain would be returned
+	GetBlockOnDepth(depth int) (*Block, error)
+
+	GetOutputsInTransaction(txid string) ([]Output, error)
+	GetInputsInTransaction(txid string) ([]Input, error)
+
+	DeleteBlocksAfter(afterHash string) error
 
 	New() Storage
 }

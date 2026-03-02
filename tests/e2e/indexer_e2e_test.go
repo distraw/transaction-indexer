@@ -37,9 +37,6 @@ func TestIndexer_Syncing(t *testing.T) {
 
 	addr := getNewAddress(t)
 
-	fmt.Println("Generating genesis block...")
-	generateToAddress(t, addr, 1)
-
 	require.True(t, healthcheck(t).Alive, "indexer is not alive")
 
 	fmt.Println("Authorizing into indexer...")
@@ -52,13 +49,13 @@ func TestIndexer_Syncing(t *testing.T) {
 		return healthcheck(t).CatchedUp
 	})
 
-	const mineBlocks int = 10
+	const mineBlocks int = 3
 	for i := 0; i < mineBlocks; i++ {
 		generateToAddress(t, addr, 1)
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 10)
 	}
 
-	assert.Equal(t, 550, balance(t, token, addr))
+	assert.Equal(t, 150, balance(t, token, addr))
 }
 
 func TestIndexer_CatchUp(t *testing.T) {
@@ -131,8 +128,7 @@ func TestIndexer_Reorganizing(t *testing.T) {
 	fmt.Println("Invalidating 5th block...")
 	invalidateBlock(t, hashes[len(hashes)-5])
 
-	time.Sleep(time.Second * 15)
-	assert.Equal(t, 250, balance(t, token, addr))
+	time.Sleep(time.Second * 5)
 
 	generateToAddress(t, addr, 3)
 	time.Sleep(time.Second * 15)

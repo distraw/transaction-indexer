@@ -17,9 +17,6 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 	var (
 		logger  = cfg.Log()
 		storage = pg.NewStorage(cfg.DB())
-		rpc     = cfg.RPCClient()
-
-		indexerInfo = cfg.IndexerInfo()
 
 		ctx, cancel = signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	)
@@ -27,13 +24,7 @@ func RunServer(cfg config.Config, jwtSecret []byte) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	indexer := indexer.New(
-		ctx,
-		storage,
-		logger,
-		rpc,
-		indexerInfo,
-	)
+	indexer := indexer.New(ctx, cfg)
 
 	server := server.NewServer(
 		cfg.Listener(),
